@@ -3,10 +3,11 @@
 # Replaces the forge-iterate AI skill with a free bash script.
 #
 # What it does:
-#   1. Runs full test suite
+#   1. Runs tests via test_fast.sh
 #   2. Counts done/pending features
 #   3. Appends a session entry to progress.txt
-#   4. Updates dependency blocking status
+#
+# Exit code: 0 if tests pass, 1 if tests fail or features.json is invalid.
 #
 # Usage: ./.forge/scripts/checkpoint.sh
 #   Called by orchestrate.sh, or manually by the user.
@@ -16,20 +17,31 @@ set -e
 echo "=== Sprint Checkpoint: $(date) ==="
 
 # --- Validate features.json ---
-if [ ! -f ".forge/projects/current/features.json" ]; then
-  echo "ERROR: .forge/projects/current/features.json not found."
+if [ ! -f "docs/projects/current/features.json" ]; then
+  echo "ERROR: docs/projects/current/features.json not found."
   exit 1
 fi
 
-python3 -c "import json; json.load(open('.forge/projects/current/features.json'))" 2>/dev/null || {
-  echo "ERROR: .forge/projects/current/features.json is not valid JSON."
+python3 -c "
+import json, sys
+with open('docs/projects/current/features.json') as f:
+    data = json.load(f)
+if 'features' not in data or not isinstance(data['features'], list):
+    print('ERROR: features.json missing \"features\" array.', file=sys.stderr)
+    sys.exit(1)
+for f in data['features']:
+    if 'id' not in f or 'status' not in f:
+        print(f'ERROR: feature missing \"id\" or \"status\" key: {f}', file=sys.stderr)
+        sys.exit(1)
+" 2>/dev/null || {
+  echo "ERROR: docs/projects/current/features.json is invalid (bad JSON or missing schema)."
   exit 1
 }
 
 # --- Count features ---
-read DONE PENDING BLOCKED TOTAL <<< $(python3 -c "
+read -r DONE PENDING BLOCKED TOTAL <<< $(python3 -c "
 import json
-with open('.forge/projects/current/features.json') as f:
+with open('docs/projects/current/features.json') as f:
     data = json.load(f)
 features = data['features']
 done = sum(1 for f in features if f['status'] == 'done')
@@ -44,7 +56,7 @@ echo "Features: $DONE done / $TOTAL total ($PENDING pending, $BLOCKED blocked)"
 # --- Completed feature IDs ---
 COMPLETED_IDS=$(python3 -c "
 import json
-with open('.forge/projects/current/features.json') as f:
+with open('docs/projects/current/features.json') as f:
     data = json.load(f)
 done_ids = [f['id'] for f in data['features'] if f['status'] == 'done']
 print(', '.join(done_ids) if done_ids else 'none')
@@ -53,10 +65,9 @@ print(', '.join(done_ids) if done_ids else 'none')
 # --- Run full tests ---
 echo ""
 echo "=== Running Full Tests ==="
-TEST_OUTPUT=$(./.forge/scripts/test_fast.sh 2>&1) || true
-TEST_EXIT=$?
+TEST_OUTPUT=$(./.forge/scripts/test_fast.sh 2>&1) && TEST_EXIT=0 || TEST_EXIT=$?
 
-if [ $TEST_EXIT -eq 0 ]; then
+if [ "$TEST_EXIT" -eq 0 ]; then
   TEST_STATUS="all pass"
   echo "Tests: PASS"
 else
@@ -66,18 +77,15 @@ else
 fi
 
 # --- Determine session number ---
-SESSION_NUM=$(grep -c "^Session:" .forge/projects/current/progress.txt 2>/dev/null || echo 0)
+SESSION_NUM=$(grep -c "^Session:" docs/projects/current/progress.txt 2>/dev/null) || SESSION_NUM=0
 SESSION_NUM=$((SESSION_NUM + 1))
 
-# --- Recent commits ---
-RECENT_COMMITS=$(git log --oneline -3 2>/dev/null | head -3 || echo "  (no commits)")
-
 # --- Append to progress.txt ---
-cat >> .forge/projects/current/progress.txt << ENTRY
+cat >> docs/projects/current/progress.txt << ENTRY
 
 ---
 Session: $SESSION_NUM ($(date +%Y-%m-%d))
-Features completed: $COMPLETED_IDS
+Features done (all-time): $COMPLETED_IDS
 Features remaining: $PENDING pending, $BLOCKED blocked
 Test status: $TEST_STATUS
 Recent commits:
@@ -91,18 +99,8 @@ echo "Done: $DONE / $TOTAL"
 echo "Remaining: $PENDING pending, $BLOCKED blocked"
 echo "Tests: $TEST_STATUS"
 
-# --- Update dependency blocking ---
-python3 -c "
-import json
-with open('.forge/projects/current/features.json') as f:
-    data = json.load(f)
-done_ids = {f['id'] for f in data['features'] if f['status'] == 'done'}
-changed = False
-for feat in data['features']:
-    if feat['status'] == 'pending':
-        deps = feat.get('depends_on', [])
-        all_met = all(d in done_ids for d in deps)
-        # No status change here — just informational
-with open('.forge/projects/current/features.json', 'w') as f:
-    json.dump(data, f, indent=2, ensure_ascii=False)
-" 2>/dev/null
+# Exit non-zero if tests failed so orchestrate.sh can detect it
+if [ "$TEST_EXIT" -ne 0 ]; then
+  exit 1
+fi
+

@@ -17,7 +17,7 @@ WRONG:
   [agent skill] → contains orchestration loop     ← role confusion
 ```
 
-## The Forge Suite (4 Skills + 5 Scripts)
+## The Forge Suite (4 Skills + 7 Scripts)
 
 ### AI Skills — judgment required
 
@@ -35,15 +35,17 @@ No separate setup skill needed.
 
 ### Bash Scripts — no AI tokens needed
 
-All scripts live in `.forge/scripts/` (gitignored).
+Runtime scripts live in `.forge/scripts/` (git tracked). `scaffold.sh` runs from the skill source directory.
 
 | Script | Role | Called by |
 |--------|------|----------|
-| scaffold.sh | One-time harness install (dirs, scripts, templates, tests) | forge-define (once) |
+| scaffold.sh | One-time harness install (dirs, scripts, templates, tests) | forge-define (once, runs from skill source) |
 | init.sh | Session briefing (project state, pending features) | Coding agent at session start |
-| checkpoint.sh | Sprint checkpoint (tests, progress update) | orchestrate.sh after each session |
+| checkpoint.sh | Sprint checkpoint (tests, progress update) | orchestrate.sh after each session, or user manually |
 | new_project.sh | Archive current project, clean slate | forge-retro at the end |
 | orchestrate.sh | Autonomous coding loop | User's terminal |
+| test_fast.sh | Quick test runner (generated per tech stack) | Coding agent, checkpoint.sh |
+| upgrade.sh | Pull latest harness from template repo | User manually |
 
 ### Repo Structure After Scaffold
 
@@ -55,19 +57,21 @@ my-project/
 │       ├── forge-define/  ← includes scripts/ and templates/ source
 │       ├── forge-project/
 │       └── forge-retro/
+├── .agents/
+│   └── skills/            ← Codex용 symlinks → .claude/skills/
 ├── .forge/                ← git tracked (runtime infrastructure)
 │   ├── scripts/           ← copied from forge-define/scripts/ by scaffold.sh
-│   ├── templates/         ← copied from forge-define/templates/ by scaffold.sh
-│   └── projects/
-│       ├── current/       ← GITIGNORED (per-developer working state)
-│       └── {archived}/    ← git tracked (completed projects + retrospective)
+│   └── templates/         ← copied from forge-define/templates/ by scaffold.sh
 ├── AGENTS.md              ← git tracked
 ├── docs/                  ← git tracked
 │   ├── prd.md, architecture.md, conventions.md, tech_stack.md
-│   └── backlog.md         ← shared: agents append, humans add ideas
+│   ├── backlog.md         ← shared: agents append, humans add ideas
+│   └── projects/
+│       ├── current/       ← GITIGNORED (per-developer working state)
+│       └── {archived}/    ← git tracked (completed projects + retrospective)
 ├── src/                   ← git tracked (product code)
 ├── tests/                 ← git tracked (product tests)
-└── .gitignore             ← ".forge/projects/current/" only
+└── .gitignore
 ```
 
 ## Feature Discovery Flow (docs/backlog.md)
@@ -91,14 +95,14 @@ whether retro was run.
 The user works with the agent directly. No automation.
 
 ```
-[Claude Code interactive session]
+[Claude Code / Codex interactive session]
 
-> /forge-project                       ← scope the work (includes backlog review)
+> /forge-project (or $forge-project)   ← scope the work (includes backlog review)
 > (code together with the agent)
 > .forge/scripts/checkpoint.sh         ← quick checkpoint when you want
 > (continue coding)
-> /forge-retro                         ← project done → retrospective
-> /forge-project                       ← next project
+> /forge-retro (or $forge-retro)       ← project done → retrospective
+> /forge-project (or $forge-project)   ← next project
 ```
 
 Best for: small projects, learning the workflow, when you want control.
@@ -108,20 +112,20 @@ Best for: small projects, learning the workflow, when you want control.
 Coding + sprint checkpoints are automated. Retro + project scoping are human.
 
 ```
-[Interactive] > /forge-project                      ← human scopes the work
+[Interactive] > /forge-project (or $forge-project)  ← human scopes the work
 [Terminal]    $ ./.forge/scripts/orchestrate.sh      ← script automates coding loop
                 → coding session 1 → checkpoint.sh
                 → coding session 2 → checkpoint.sh
                 → coding session 3 → all features done → exit
-[Interactive] > /forge-retro                        ← human does retrospective
-[Interactive] > /forge-project                      ← human scopes next project
+[Interactive] > /forge-retro (or $forge-retro)      ← human does retrospective
+[Interactive] > /forge-project (or $forge-project)  ← human scopes next project
 [Terminal]    $ ./.forge/scripts/orchestrate.sh      ← automate again
 ```
 
 The cycle:
-1. **Human decides WHAT** → /forge-project (interactive, includes backlog review)
+1. **Human decides WHAT** → /forge-project or $forge-project (interactive, includes backlog review)
 2. **Machine does HOW** → orchestrate.sh (autonomous, agents append to backlog)
-3. **Human reflects WHY** → /forge-retro (interactive, processes backlog)
+3. **Human reflects WHY** → /forge-retro or $forge-retro (interactive, processes backlog)
 4. Repeat
 
 Best for: most projects. Maximizes token usage while keeping human judgment at decision points.
@@ -158,7 +162,7 @@ Sprint checkpoints and project retrospectives are fundamentally different:
 5. **Stuck detection**: If pending count doesn't decrease, stop. The agent is stuck.
 6. **Max session limit**: Always cap iterations. Default 20.
 7. **Agent-agnostic**: Support both claude and codex via parameter.
-8. **Clear exit message**: Tell the user to run /forge-retro next.
+8. **Clear exit message**: Tell the user to run /forge-retro (or $forge-retro) next.
 
 ## What Goes WHERE
 
@@ -169,8 +173,8 @@ Sprint checkpoints and project retrospectives are fundamentally different:
 | Sprint checkpoint | .forge/scripts/checkpoint.sh | orchestrate.sh (bash) |
 | Project retrospective | .claude/skills/forge-retro/ | User + agent (interactive) |
 | Project scoping | .claude/skills/forge-project/ | User + agent (interactive) |
-| Feature state | .forge/projects/current/features.json | Agents + scripts (shared) |
-| Progress log | .forge/projects/current/progress.txt | Agents + scripts (shared) |
+| Feature state | docs/projects/current/features.json | Agents + scripts (shared) |
+| Progress log | docs/projects/current/progress.txt | Agents + scripts (shared) |
 | Feature discovery | docs/backlog.md | Agents (append) + humans (add) |
 
 ## Anti-Patterns
@@ -180,7 +184,7 @@ Sprint checkpoints and project retrospectives are fundamentally different:
 - **AI doing mechanical work**: Using an agent session for tests + feature counting
 - **Separate setup skill**: Wasting a full AI session on mkdir + file copy
 - **Headless retrospective**: Running forge-retro without human input
-- **Skipping backlog review**: Running /forge-project without checking docs/backlog.md
+- **Skipping backlog review**: Running /forge-project (or $forge-project) without checking docs/backlog.md
 - **Implicit role**: Instructions that blur agent vs user responsibilities
 - **Unbounded loops**: orchestrate.sh without max iteration or stuck detection
 - **Agent modifying features.json scope**: Agent should only change status, never add new features

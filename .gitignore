@@ -1,5 +1,5 @@
-# Forge: active project state (ephemeral, per-developer)
-.forge/projects/current/
+# Forge: active project state (per-developer)
+docs/projects/current/
 
 # Common ignores
 node_modules/

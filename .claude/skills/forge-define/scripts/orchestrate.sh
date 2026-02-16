@@ -12,13 +12,15 @@
 #   3. Check: done? stuck? max reached? → exit or continue
 #
 # Does NOT do:
-#   - Project retrospective (you do: /forge-retro)
-#   - Next project creation (you do: /forge-project)
+#   - Project retrospective (you do: /forge-retro or $forge-retro)
+#   - Next project creation (you do: /forge-project or $forge-project)
 
 AGENT="${1:-claude}"
 MAX_SESSIONS="${2:-20}"
 SESSION=0
 STALL_COUNT=0
+CHILD_PID=""
+PID_FILE=".forge/orchestrate.pid"
 
 # Validate agent
 if [ "$AGENT" != "claude" ] && [ "$AGENT" != "codex" ]; then
@@ -26,35 +28,70 @@ if [ "$AGENT" != "claude" ] && [ "$AGENT" != "codex" ]; then
   exit 1
 fi
 
+# Validate max-sessions is a positive integer
+if ! [[ "$MAX_SESSIONS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Error: max-sessions must be a positive integer, got '$MAX_SESSIONS'."
+  exit 1
+fi
+
+# --- Signal handling: Ctrl+C / kill from another terminal ---
+cleanup() {
+  echo ""
+  echo "=== Orchestrator interrupted ==="
+  if [ -n "$CHILD_PID" ]; then
+    # Kill the child process tree
+    kill -TERM "$CHILD_PID" 2>/dev/null
+    wait "$CHILD_PID" 2>/dev/null
+  fi
+  rm -f "$PID_FILE"
+  exit 130
+}
+trap cleanup SIGINT SIGTERM
+
+echo "$$" > "$PID_FILE"
+
 get_pending() {
-  python3 -c "
+  local val
+  val=$(python3 -c "
 import json
-with open('.forge/projects/current/features.json') as f:
+with open('docs/projects/current/features.json') as f:
     data = json.load(f)
 print(sum(1 for f in data['features'] if f['status'] != 'done'))
-"
+" 2>/dev/null) || val=""
+  if [[ "$val" =~ ^[0-9]+$ ]]; then
+    echo "$val"
+  else
+    echo "ERROR: Failed to read features.json" >&2
+    echo "-1"
+  fi
 }
 
 get_done() {
-  python3 -c "
+  local val
+  val=$(python3 -c "
 import json
-with open('.forge/projects/current/features.json') as f:
+with open('docs/projects/current/features.json') as f:
     data = json.load(f)
 print(sum(1 for f in data['features'] if f['status'] == 'done'))
-"
+" 2>/dev/null) || val=""
+  if [[ "$val" =~ ^[0-9]+$ ]]; then
+    echo "$val"
+  else
+    echo "0"
+  fi
 }
 
 build_prompt() {
   # Embed full context so the agent can work autonomously
-  local SPEC=$(head -20 .forge/projects/current/spec.md 2>/dev/null)
-  local FEATURES=$(cat .forge/projects/current/features.json 2>/dev/null)
+  local SPEC=$(head -20 docs/projects/current/spec.md 2>/dev/null)
+  local FEATURES=$(cat docs/projects/current/features.json 2>/dev/null)
 
   cat << PROMPT
 Read AGENTS.md first, then follow these instructions.
 
 ## Session Protocol
 1. Run: source .forge/scripts/init.sh
-2. Read .forge/projects/current/features.json
+2. Read docs/projects/current/features.json
 3. Find the FIRST feature with status="pending" whose dependencies are all "done"
 4. Implement that feature following docs/prd.md and docs/architecture.md
 5. Write tests for the feature
@@ -70,33 +107,50 @@ $SPEC
 $FEATURES
 
 ## Critical Rules
-- NEVER modify existing tests or docs/ files
+- NEVER modify existing tests or source docs (docs/prd.md, docs/architecture.md, etc.)
+- Exception: you MUST update docs/projects/current/features.json and MAY append to docs/backlog.md
 - ALWAYS run ./.forge/scripts/test_fast.sh before marking a feature done
-- ALWAYS update .forge/projects/current/features.json status to "done" after passing tests
+- ALWAYS update docs/projects/current/features.json status to "done" after passing tests
 - If blocked: set status to "blocked", commit, and exit
 - If you discover a new feature is needed, append one line to docs/backlog.md and continue. Do NOT add it to features.json.
 PROMPT
 }
 
 run_coding_session() {
+  # Run agent in background + wait so that trap can fire on Ctrl+C.
+  local exit_code=0
   if [ "$AGENT" = "codex" ]; then
-    codex --full-auto -q "$1"
+    codex exec --full-auto "$1" &
   else
-    claude -p "$1"
+    # --dangerously-skip-permissions: autonomous mode requires no human approval.
+    # The human gate is at forge-project and forge-retro, not during coding.
+    claude -p --dangerously-skip-permissions "$1" &
   fi
+  CHILD_PID=$!
+  wait "$CHILD_PID" && exit_code=0 || exit_code=$?
+  CHILD_PID=""
+  return $exit_code
 }
 
 PREV_PENDING=$(get_pending)
 
+if [ "$PREV_PENDING" -eq -1 ]; then
+  echo "Error: Could not read docs/projects/current/features.json."
+  echo "Run /forge-project (Claude) or \$forge-project (Codex) to create a project first."
+  rm -f "$PID_FILE"
+  exit 1
+fi
+
 echo "=== Forge Orchestrator ==="
 echo "Agent: $AGENT"
 echo "Max sessions: $MAX_SESSIONS"
-echo "Project: $(head -1 .forge/projects/current/spec.md)"
+echo "Project: $(head -1 docs/projects/current/spec.md)"
 echo "Pending features: $PREV_PENDING"
 echo ""
 
 if [ "$PREV_PENDING" -eq 0 ]; then
-  echo "No pending features. Run /forge-project to create a new project first."
+  echo "No pending features. Run /forge-project (Claude) or \$forge-project (Codex) to create a new project first."
+  rm -f "$PID_FILE"
   exit 0
 fi
 
@@ -110,8 +164,24 @@ while [ "$SESSION" -lt "$MAX_SESSIONS" ]; do
   # --- AI coding session (with full context) ---
   PROMPT=$(build_prompt)
   run_coding_session "$PROMPT"
+  SESSION_EXIT=$?
+  if [ "$SESSION_EXIT" -ne 0 ]; then
+    echo ""
+    echo "=== Agent session failed (exit code: $SESSION_EXIT) ==="
+    echo "The agent process crashed or was not found. Stopping."
+    ./.forge/scripts/checkpoint.sh || true
+    break
+  fi
 
   CURRENT_PENDING=$(get_pending)
+
+  # --- Guard: features.json read failure mid-loop ---
+  if [ "$CURRENT_PENDING" -eq -1 ]; then
+    echo ""
+    echo "=== Error reading features.json. Stopping. ==="
+    ./.forge/scripts/checkpoint.sh || true
+    break
+  fi
 
   # --- Check completion ---
   if [ "$CURRENT_PENDING" -eq 0 ]; then
@@ -155,13 +225,21 @@ while [ "$SESSION" -lt "$MAX_SESSIONS" ]; do
   PREV_PENDING=$CURRENT_PENDING
 done
 
+rm -f "$PID_FILE"
+
 echo ""
 echo "=== Orchestrator finished ==="
 echo "Sessions: $SESSION"
-echo "Features done: $(get_done)"
-echo "Features remaining: $(get_pending)"
+FINAL_DONE=$(get_done)
+FINAL_PENDING=$(get_pending)
+if [ "$FINAL_PENDING" -eq -1 ]; then
+  echo "Features: unable to read (features.json may be broken)"
+else
+  echo "Features done: $FINAL_DONE"
+  echo "Features remaining: $FINAL_PENDING"
+fi
 echo ""
 echo "Next steps (interactive):"
-echo "  1. Review:  cat .forge/projects/current/progress.txt"
-echo "  2. Retro:   claude → /forge-retro"
-echo "  3. Next:    claude → /forge-project"
+echo "  1. Review:  cat docs/projects/current/progress.txt"
+echo "  2. Retro:   /forge-retro (Claude) or \$forge-retro (Codex)"
+echo "  3. Next:    /forge-project (Claude) or \$forge-project (Codex)"

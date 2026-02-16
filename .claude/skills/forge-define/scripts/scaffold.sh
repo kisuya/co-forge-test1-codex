@@ -5,7 +5,7 @@
 # Usage: bash /path/to/forge-define/scripts/scaffold.sh
 #
 # The script finds its sibling files using its own directory location.
-# All harness files go into .forge/ (gitignored). Product code stays in root.
+# All harness files go into .forge/ (git tracked). Product code stays in root.
 
 set -e
 
@@ -14,17 +14,35 @@ SKILL_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo "=== Forge Scaffold ==="
 
+# --- Prerequisites (check before any destructive actions) ---
+if [ ! -f "AGENTS.md" ]; then
+  echo "Error: AGENTS.md not found. Run /forge-define (Claude) or \$forge-define (Codex) first."
+  exit 1
+fi
+
+if [ ! -d "docs" ]; then
+  echo "Error: docs/ not found. Run /forge-define (Claude) or \$forge-define (Codex) first."
+  exit 1
+fi
+
 # --- Step 0: Guard against pushing to template repo ---
-TEMPLATE_REPO="kisuya/co-forge"
 ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
 
-if echo "$ORIGIN_URL" | grep -qi "$TEMPLATE_REPO"; then
+# Exact match: kisuya/co-forge.git or kisuya/co-forge (not co-forge-xxx)
+if echo "$ORIGIN_URL" | grep -qE 'kisuya/co-forge(\.git)?$'; then
   echo ""
-  echo "⚠  Warning: origin이 템플릿 저장소($TEMPLATE_REPO)를 가리키고 있습니다."
+  echo "⚠  Warning: origin이 템플릿 저장소(kisuya/co-forge)를 가리키고 있습니다."
   echo "   이대로 push하면 원본 템플릿 저장소를 덮어씁니다."
   echo ""
-  read -rp "origin remote를 제거할까요? (Y/n): " ANSWER
-  ANSWER=${ANSWER:-Y}
+  if [ -t 0 ]; then
+    # Interactive: prompt user
+    read -rp "origin remote를 제거할까요? (Y/n): " ANSWER
+    ANSWER=${ANSWER:-Y}
+  else
+    # Non-interactive (agent/CI): auto-remove
+    ANSWER="Y"
+    echo "  (비대화형 환경 감지 — origin을 자동 제거합니다)"
+  fi
   if [[ "$ANSWER" =~ ^[Yy]$ ]]; then
     git remote remove origin
     echo "  ✓ origin remote를 제거했습니다."
@@ -36,20 +54,9 @@ if echo "$ORIGIN_URL" | grep -qi "$TEMPLATE_REPO"; then
   echo ""
 fi
 
-# --- Prerequisites ---
-if [ ! -f "AGENTS.md" ]; then
-  echo "Error: AGENTS.md not found. Run /forge-define first."
-  exit 1
-fi
-
-if [ ! -d "docs" ]; then
-  echo "Error: docs/ not found. Run /forge-define first."
-  exit 1
-fi
-
 # --- Step 1: Create .forge/ structure ---
 echo "Creating .forge/ directory structure..."
-mkdir -p .forge/scripts .forge/templates .forge/projects/current tests
+mkdir -p .forge/scripts .forge/templates docs/projects/current tests
 
 # --- Step 2: Install runtime scripts ---
 echo "Installing runtime scripts..."
@@ -61,7 +68,7 @@ if [ -d ".forge/scripts" ] && [ "$(ls -A .forge/scripts/ 2>/dev/null)" ]; then
   cp -r .forge/scripts "$BACKUP"
 fi
 
-for script in init.sh checkpoint.sh new_project.sh orchestrate.sh; do
+for script in init.sh checkpoint.sh new_project.sh orchestrate.sh upgrade.sh; do
   if [ -f "$SCRIPT_DIR/$script" ]; then
     cp "$SCRIPT_DIR/$script" ".forge/scripts/$script"
   else
@@ -114,9 +121,9 @@ fi
 
 # --- Step 5: Create project placeholders ---
 echo "Creating project placeholders..."
-echo "# New Project" > .forge/projects/current/spec.md
-echo '{"project":"","goal":"","agent":"","features":[]}' > .forge/projects/current/features.json
-echo "No progress yet." > .forge/projects/current/progress.txt
+echo "# New Project" > docs/projects/current/spec.md
+echo '{"project":"","goal":"","agent":"","features":[]}' > docs/projects/current/features.json
+echo "No progress yet." > docs/projects/current/progress.txt
 
 # --- Step 6: Create docs/backlog.md ---
 echo "Creating backlog..."
@@ -125,7 +132,7 @@ if [ ! -f "docs/backlog.md" ]; then
 # Backlog
 
 Items discovered during development or brainstormed outside coding sessions.
-Reviewed at the start of each /forge-project.
+Reviewed at the start of each /forge-project (Claude) or $forge-project (Codex).
 
 <!-- Format: - [source] description -->
 BLEOF
@@ -145,7 +152,7 @@ def test_agents_md_exists():
     assert os.path.exists("AGENTS.md")
 
 def test_features_json_valid():
-    with open(".forge/projects/current/features.json") as f:
+    with open("docs/projects/current/features.json") as f:
         data = json.load(f)
     assert "features" in data
 PYEOF
@@ -156,7 +163,7 @@ test('AGENTS.md exists', () => {
   expect(fs.existsSync('AGENTS.md')).toBe(true);
 });
 test('features.json is valid', () => {
-  const data = JSON.parse(fs.readFileSync('.forge/projects/current/features.json'));
+  const data = JSON.parse(fs.readFileSync('docs/projects/current/features.json'));
   expect(data).toHaveProperty('features');
 });
 JSEOF
@@ -164,7 +171,7 @@ else
   cat > tests/test_smoke.sh << 'SHEOF'
 #!/bin/bash
 [ -f "AGENTS.md" ] || { echo "FAIL: AGENTS.md missing"; exit 1; }
-python3 -c "import json; json.load(open('.forge/projects/current/features.json'))" \
+python3 -c "import json; json.load(open('docs/projects/current/features.json'))" \
   || { echo "FAIL: features.json invalid"; exit 1; }
 echo "Smoke test passed."
 SHEOF
@@ -176,8 +183,8 @@ if [ ! -d ".git" ]; then
   echo "Initializing git..."
   git init -q
   cat > .gitignore << 'GITEOF'
-# Forge: active project state (ephemeral, per-developer)
-.forge/projects/current/
+# Forge: active project state (per-developer)
+docs/projects/current/
 
 # Common ignores
 node_modules/
@@ -193,12 +200,12 @@ GITEOF
   git commit -q -m "Initial harness setup (forge scaffold)"
   echo "  Git initialized with initial commit."
 else
-  # Ensure .forge/projects/current/ is gitignored even on existing repos
-  if ! grep -q "\.forge/projects/current/" .gitignore 2>/dev/null; then
+  # Ensure docs/projects/current/ is gitignored even on existing repos
+  if ! grep -q "docs/projects/current/" .gitignore 2>/dev/null; then
     echo "" >> .gitignore
-    echo "# Forge: active project state (ephemeral, per-developer)" >> .gitignore
-    echo ".forge/projects/current/" >> .gitignore
-    echo "  Added .forge/projects/current/ to .gitignore"
+    echo "# Forge: active project state (per-developer)" >> .gitignore
+    echo "docs/projects/current/" >> .gitignore
+    echo "  Added docs/projects/current/ to .gitignore"
   fi
   echo "  Git already initialized."
 fi
@@ -213,16 +220,18 @@ PASS=true
 [ -f ".forge/scripts/checkpoint.sh" ]        && echo "  ✓ .forge/scripts/checkpoint.sh"  || { echo "  ✗ .forge/scripts/checkpoint.sh"; PASS=false; }
 [ -f ".forge/scripts/orchestrate.sh" ]       && echo "  ✓ .forge/scripts/orchestrate.sh" || { echo "  ✗ .forge/scripts/orchestrate.sh"; PASS=false; }
 [ -f ".forge/scripts/test_fast.sh" ]         && echo "  ✓ .forge/scripts/test_fast.sh"   || { echo "  ✗ .forge/scripts/test_fast.sh"; PASS=false; }
+[ -f ".forge/scripts/upgrade.sh" ]           && echo "  ✓ .forge/scripts/upgrade.sh"     || { echo "  ✗ .forge/scripts/upgrade.sh"; PASS=false; }
+[ -f ".forge/scripts/new_project.sh" ]       && echo "  ✓ .forge/scripts/new_project.sh" || { echo "  ✗ .forge/scripts/new_project.sh"; PASS=false; }
 [ -d ".forge/templates" ]                    && echo "  ✓ .forge/templates/"              || { echo "  ✗ .forge/templates/"; PASS=false; }
-[ -f ".forge/projects/current/features.json" ] && echo "  ✓ .forge/projects/current/"    || { echo "  ✗ .forge/projects/current/"; PASS=false; }
+[ -f "docs/projects/current/features.json" ] && echo "  ✓ docs/projects/current/"    || { echo "  ✗ docs/projects/current/"; PASS=false; }
 [ -d "tests" ]                               && echo "  ✓ tests/"                        || { echo "  ✗ tests/"; PASS=false; }
 [ -f "docs/backlog.md" ]                     && echo "  ✓ docs/backlog.md"               || { echo "  ✗ docs/backlog.md"; PASS=false; }
-grep -q "\.forge/projects/current/" .gitignore 2>/dev/null && echo "  ✓ .forge/projects/current/ in .gitignore" || { echo "  ✗ .forge/projects/current/ not in .gitignore"; PASS=false; }
+grep -q "docs/projects/current/" .gitignore 2>/dev/null && echo "  ✓ docs/projects/current/ in .gitignore" || { echo "  ✗ docs/projects/current/ not in .gitignore"; PASS=false; }
 
 echo ""
 if $PASS; then
   echo "=== Scaffold Complete ==="
-  echo "Run /forge-project to create your first project."
+  echo "Run /forge-project (Claude) or \$forge-project (Codex) to create your first project."
 else
   echo "=== Scaffold had issues. Review above. ==="
   exit 1
