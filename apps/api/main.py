@@ -4,9 +4,10 @@ from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Request, Response
 
+from apps.api.auth_watchlist_routes import register_auth_watchlist_routes
 from apps.domain.events import TransientStoreError, parse_utc_datetime, price_event_store
 from apps.domain.reasons import event_reason_store
-from apps.domain.watchlists import watchlist_service
+from apps.infra.observability import log_error, log_info
 from apps.infra.postgres import (
     DatabaseConnectionError,
     get_database_runtime,
@@ -15,6 +16,7 @@ from apps.infra.postgres import (
 
 app = FastAPI(title="oh-my-stock API")
 initialize_database_runtime(request_id="startup")
+register_auth_watchlist_routes(app)
 
 
 @app.get("/health")
@@ -34,43 +36,13 @@ def db_health(request: Request) -> dict[str, str]:
             message="Database health check failed",
             details={"retryable": True, "reason": str(exc)},
         ) from exc
+    log_info(
+        feature="ops-003",
+        event="db_health_ok",
+        request_id=request_id,
+        logger_name="oh_my_stock.api",
+    )
     return {"status": status}
-
-
-@app.post("/v1/watchlists/items")
-def create_watchlist_item(body: dict[str, str]) -> tuple[dict[str, object], int]:
-    try:
-        item, is_duplicate = watchlist_service.create_item(
-            symbol=body.get("symbol", ""),
-            market=body.get("market", ""),
-            user_id=body.get("user_id"),
-        )
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            code="invalid_input",
-            message="Invalid watchlist item payload",
-            details={"error": str(exc)},
-        ) from exc
-
-    status_code = 200 if is_duplicate else 201
-    return {
-        "item": item.to_dict(),
-        "is_duplicate": is_duplicate,
-    }, status_code
-
-
-@app.delete("/v1/watchlists/items/{item_id}")
-def delete_watchlist_item(item_id: str) -> dict[str, object]:
-    deleted = watchlist_service.delete_item(item_id)
-    if not deleted:
-        raise HTTPException(
-            status_code=404,
-            code="watchlist_item_not_found",
-            message="Watchlist item not found",
-            details={"item_id": item_id},
-        )
-    return {"deleted": True, "item_id": item_id}
 
 
 def _serialize_event(event: object) -> dict[str, object]:
@@ -139,6 +111,13 @@ def get_event_detail(event_id: str) -> dict[str, object]:
 
 @app.exception_handler(TransientStoreError)
 def handle_transient_store_error(exc: TransientStoreError, request_id: str) -> Response:
+    log_error(
+        feature="ops-003",
+        event="api_transient_error",
+        request_id=request_id,
+        logger_name="oh_my_stock.api",
+        error=str(exc),
+    )
     payload = {
         "code": "temporarily_unavailable",
         "message": "Temporary service issue. Please retry.",
@@ -150,6 +129,15 @@ def handle_transient_store_error(exc: TransientStoreError, request_id: str) -> R
 
 @app.exception_handler(HTTPException)
 def handle_http_exception(exc: HTTPException, request_id: str) -> Response:
+    log_error(
+        feature="ops-003",
+        event="api_http_error",
+        request_id=request_id,
+        logger_name="oh_my_stock.api",
+        code=exc.code or "http_error",
+        status_code=exc.status_code,
+        details=exc.details,
+    )
     payload = {
         "code": exc.code or "http_error",
         "message": exc.message or "Request failed",

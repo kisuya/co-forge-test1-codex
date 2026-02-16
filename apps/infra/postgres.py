@@ -222,12 +222,15 @@ def _probe_scalar_one(engine: Any) -> Any:
                 return result.scalar_one()
             return result.scalar()
 
-    with engine.connect() as connection:
+    connection = engine.connect()
+    try:
         cursor = connection.execute("SELECT 1")
         row = cursor.fetchone()
         if row is None:
             return None
         return row[0]
+    finally:
+        connection.close()
 
 
 def _parse_positive_int(value: str | None, *, fallback: int, variable_name: str) -> int:

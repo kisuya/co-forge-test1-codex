@@ -5,6 +5,7 @@ from typing import Any
 
 from apps.domain.events import parse_utc_datetime
 from apps.domain.notifications import VALID_CHANNELS, notification_store
+from apps.infra.observability import log_error, log_info
 
 
 def _build_message(event: dict[str, Any], reasons: list[dict[str, Any]]) -> str:
@@ -31,6 +32,7 @@ def dispatch_event_notifications(
     user_id: str,
     channels: list[str] | None = None,
     now_utc: datetime | str,
+    request_id: str | None = None,
 ) -> list[dict[str, str]]:
     active_channels = channels or ["in_app", "email"]
     sent_at = parse_utc_datetime(now_utc)
@@ -40,6 +42,16 @@ def dispatch_event_notifications(
     dispatched: list[dict[str, str]] = []
     for channel in active_channels:
         if channel not in VALID_CHANNELS:
+            log_error(
+                feature="ops-003",
+                event="worker_notification_failed",
+                request_id=request_id,
+                logger_name="oh_my_stock.worker",
+                user_id=user_id,
+                event_id=event_id,
+                channel=channel,
+                reason="unsupported_channel",
+            )
             raise ValueError("unsupported channel")
         if notification_store.in_cooldown(
             user_id=user_id,
@@ -47,7 +59,16 @@ def dispatch_event_notifications(
             channel=channel,
             sent_at=sent_at,
             cooldown_minutes=30,
-        ):
+            ):
+            log_info(
+                feature="ops-003",
+                event="worker_notification_skipped_cooldown",
+                request_id=request_id,
+                logger_name="oh_my_stock.worker",
+                user_id=user_id,
+                event_id=event_id,
+                channel=channel,
+            )
             continue
 
         notification = notification_store.create_notification(
@@ -60,5 +81,15 @@ def dispatch_event_notifications(
         )
         notification_store.save(notification)
         dispatched.append(notification.to_dict())
+        log_info(
+            feature="ops-003",
+            event="worker_notification_sent",
+            request_id=request_id,
+            logger_name="oh_my_stock.worker",
+            notification_id=notification.id,
+            user_id=user_id,
+            event_id=event_id,
+            channel=channel,
+        )
 
     return dispatched

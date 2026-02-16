@@ -19,6 +19,37 @@ KR/US 주식 급등락 이벤트를 감지하고, 원인 후보와 근거 URL을
 python3 -m unittest discover -s tests -p "test_*.py"
 ```
 
+## Local Compose Stack
+
+```bash
+# api/web/worker/postgres/redis 스택 시작
+docker compose up -d
+
+# 컨테이너만 종료하고 데이터 볼륨은 유지
+docker compose down
+
+# 컨테이너와 데이터 볼륨을 함께 초기화
+docker compose down -v
+```
+
+## Bootstrap Scripts
+
+```bash
+# 1) 환경변수 로드
+set -a
+source .env
+set +a
+
+# 2) 의존성 설치(기본은 dry-run 로그, BOOTSTRAP_RUN_INSTALL=1이면 실제 실행)
+./scripts/bootstrap_install.sh
+
+# 3) 마이그레이션 적용
+./scripts/bootstrap_migrate.sh
+
+# 4) 헬스체크
+./scripts/bootstrap_health.sh
+```
+
 ## Project Docs
 - 제품 요구사항: `docs/prd.md`
 - 아키텍처 결정: `docs/architecture.md`

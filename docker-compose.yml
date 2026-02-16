@@ -1,0 +1,97 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: oh-my-stock-postgres
+    environment:
+      POSTGRES_DB: oh_my_stock
+      POSTGRES_USER: oh_my_stock
+      POSTGRES_PASSWORD: oh_my_stock
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oh_my_stock -d oh_my_stock"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: oh-my-stock-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: python:3.12-alpine
+    container_name: oh-my-stock-api
+    working_dir: /workspace
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
+    environment:
+      DATABASE_URL: postgresql://oh_my_stock:oh_my_stock@postgres:5432/oh_my_stock
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "echo api-ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    image: python:3.12-alpine
+    container_name: oh-my-stock-worker
+    working_dir: /workspace
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
+    environment:
+      DATABASE_URL: postgresql://oh_my_stock:oh_my_stock@postgres:5432/oh_my_stock
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "echo worker-ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  web:
+    image: node:22-alpine
+    container_name: oh-my-stock-web
+    working_dir: /workspace
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
+    environment:
+      API_BASE_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "echo web-ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

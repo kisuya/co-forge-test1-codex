@@ -132,12 +132,15 @@ def execute_statement(
             connection.exec_driver_sql(statement, parameters or ())
         return
 
-    with engine.connect() as connection:
+    connection = engine.connect()
+    try:
         if parameters is None:
             connection.execute(statement)
         else:
             connection.execute(statement, parameters)
         connection.commit()
+    finally:
+        connection.close()
 
 
 def fetch_all(
@@ -150,12 +153,15 @@ def fetch_all(
             result = connection.exec_driver_sql(statement, parameters or ())
             return [tuple(row) for row in result.fetchall()]
 
-    with engine.connect() as connection:
+    connection = engine.connect()
+    try:
         if parameters is None:
             cursor = connection.execute(statement)
         else:
             cursor = connection.execute(statement, parameters)
         rows = cursor.fetchall()
+    finally:
+        connection.close()
     return [tuple(row) for row in rows]
 
 
@@ -166,7 +172,10 @@ def _execute_many(engine: Any, statements: Iterable[str]) -> None:
                 connection.exec_driver_sql(statement)
         return
 
-    with engine.connect() as connection:
+    connection = engine.connect()
+    try:
         for statement in statements:
             connection.execute(statement)
         connection.commit()
+    finally:
+        connection.close()
