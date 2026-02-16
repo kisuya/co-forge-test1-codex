@@ -11,8 +11,9 @@ oh-my-stock은 KR/US 주식 급등락의 원인을 근거와 함께 1분 내 전
 
 ## Absolute Rules
 - 기존 테스트 파일은 절대 수정하지 않는다.
-- 커밋 전 반드시 `.forge/scripts/test_fast.sh`를 실행한다.
-- 기능 완료 시 `docs/projects/current/features.json`의 해당 항목 상태만 업데이트하고, 새 기능은 `docs/backlog.md`에만 추가한다.
+- 기능을 `done`으로 바꾸기 전에 반드시 `.forge/scripts/test_fast.sh`를 통과시키고, 수동 커밋 시에도 동일하게 테스트를 선행한다.
+- 오케스트레이터 세션에서는 직접 `git commit` 하지 않는다 (`checkpoint.sh`가 세션 단위 커밋 담당).
+- `docs/projects/current/features.json`에서 기능 상태를 업데이트할 때 `description`은 미니 스펙(입출력/성공·실패/경계조건)으로 유지하고, 새 기능은 `docs/backlog.md`에만 추가한다.
 - 기능 단위는 사용자 시나리오 기준으로 정의하고, 1~2일 내 검증 가능한 vertical slice로 구현한다.
 - 완료 기준은 백엔드 단위가 아니라 프론트엔드+백엔드를 실제로 테스트 가능한 흐름까지 포함한다.
 - 모든 파일은 300라인 이하로 유지한다.

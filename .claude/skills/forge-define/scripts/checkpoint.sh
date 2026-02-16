@@ -33,8 +33,13 @@ for f in data['features']:
     if 'id' not in f or 'status' not in f:
         print(f'ERROR: feature missing \"id\" or \"status\" key: {f}', file=sys.stderr)
         sys.exit(1)
-" 2>/dev/null || {
-  echo "ERROR: docs/projects/current/features.json is invalid (bad JSON or missing schema)."
+    if 'description' not in f or not f['description'].strip():
+        print(f'ERROR: feature \"{f[\"id\"]}\" missing or empty \"description\".', file=sys.stderr)
+        sys.exit(1)
+    if f['description'].strip() == f.get('name', '').strip():
+        print(f'ERROR: feature \"{f[\"id\"]}\" description is identical to name.', file=sys.stderr)
+        sys.exit(1)
+" 2>&1 || {
   exit 1
 }
 
@@ -97,9 +102,10 @@ echo ""
 # --- Git commit (if tests pass and there are changes) ---
 if [ "$TEST_EXIT" -eq 0 ]; then
   if ! git diff --quiet HEAD 2>/dev/null || ! git diff --cached --quiet HEAD 2>/dev/null; then
+    COMMIT_MSG="Session $SESSION_NUM: $COMPLETED_IDS ($DONE/$TOTAL done)"
     git add -A 2>/dev/null && \
-    git commit -m "Session $SESSION_NUM checkpoint" 2>/dev/null && \
-    echo "Git: committed" || echo "Git: commit skipped (write not available)"
+    git commit -m "$COMMIT_MSG" 2>/dev/null && \
+    echo "Git: committed — $COMMIT_MSG" || echo "Git: commit skipped (write not available)"
   else
     echo "Git: nothing to commit"
   fi
