@@ -7,13 +7,34 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from apps.domain.events import TransientStoreError, parse_utc_datetime, price_event_store
 from apps.domain.reasons import event_reason_store
 from apps.domain.watchlists import watchlist_service
+from apps.infra.postgres import (
+    DatabaseConnectionError,
+    get_database_runtime,
+    initialize_database_runtime,
+)
 
 app = FastAPI(title="oh-my-stock API")
+initialize_database_runtime(request_id="startup")
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/health/db")
+def db_health(request: Request) -> dict[str, str]:
+    request_id = request.request_id or "health-db"
+    try:
+        status = get_database_runtime().health(request_id=request_id)
+    except DatabaseConnectionError as exc:
+        raise HTTPException(
+            status_code=503,
+            code="db_unavailable",
+            message="Database health check failed",
+            details={"retryable": True, "reason": str(exc)},
+        ) from exc
+    return {"status": status}
 
 
 @app.post("/v1/watchlists/items")
