@@ -1,0 +1,10 @@
+{
+  "auth_missing": 401,
+  "b2b_missing": 401,
+  "rate_limit_statuses": [
+    200,
+    200,
+    429
+  ],
+  "retry_after": "34"
+}
