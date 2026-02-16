@@ -34,5 +34,13 @@ class TestClient:
     ) -> Response:
         return self.request("POST", url, json=json, headers=headers)
 
+    def patch(
+        self,
+        url: str,
+        json: Any = None,
+        headers: dict[str, str] | None = None,
+    ) -> Response:
+        return self.request("PATCH", url, json=json, headers=headers)
+
     def delete(self, url: str, headers: dict[str, str] | None = None) -> Response:
         return self.request("DELETE", url, headers=headers)

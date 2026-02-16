@@ -14,6 +14,7 @@ class EventReason:
     summary: str
     source_url: str
     published_at: str
+    explanation: dict[str, object]
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -42,7 +43,9 @@ class EventReasonStore:
         summary: str,
         source_url: str,
         published_at: str,
+        explanation: dict[str, object],
     ) -> EventReason:
+        validated_explanation = _validate_explanation(explanation)
         return EventReason(
             id=str(uuid4()),
             event_id=event_id,
@@ -52,7 +55,22 @@ class EventReasonStore:
             summary=summary,
             source_url=source_url,
             published_at=published_at,
+            explanation=validated_explanation,
         )
+
+
+def _validate_explanation(explanation: dict[str, object]) -> dict[str, object]:
+    if not isinstance(explanation, dict):
+        raise ValueError("explanation must be an object")
+    required_sections = ("weights", "signals", "score_breakdown")
+    for section in required_sections:
+        value = explanation.get(section)
+        if not isinstance(value, dict):
+            raise ValueError(f"explanation.{section} must be an object")
+    score_breakdown = explanation["score_breakdown"]
+    if "total" not in score_breakdown:
+        raise ValueError("explanation.score_breakdown.total is required")
+    return explanation
 
 
 event_reason_store = EventReasonStore()

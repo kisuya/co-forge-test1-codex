@@ -113,6 +113,9 @@ class FastAPI:
     def post(self, path: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         return self._method_decorator(path, "POST")
 
+    def patch(self, path: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        return self._method_decorator(path, "PATCH")
+
     def delete(self, path: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         return self._method_decorator(path, "DELETE")
 

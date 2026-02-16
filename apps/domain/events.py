@@ -110,10 +110,12 @@ class PriceEventStore:
         *,
         symbol: str | None = None,
         market: str | None = None,
+        session_label: str | None = None,
         from_utc: datetime | None = None,
         to_utc: datetime | None = None,
         now_utc: datetime | None = None,
         max_age_days: int = 30,
+        sort_desc: bool = True,
     ) -> list[PriceEvent]:
         self._raise_if_transient_failure()
         effective_now = now_utc or datetime.now(timezone.utc)
@@ -128,13 +130,18 @@ class PriceEventStore:
                 continue
             if market and event.market != market:
                 continue
+            if session_label and event.session_label != session_label:
+                continue
             if from_utc and detected_at < from_utc:
                 continue
             if to_utc and detected_at > to_utc:
                 continue
             results.append(event)
 
-        results.sort(key=lambda item: parse_utc_datetime(item.detected_at_utc), reverse=True)
+        results.sort(
+            key=lambda item: (parse_utc_datetime(item.detected_at_utc), item.id),
+            reverse=sort_desc,
+        )
         return results
 
     def get_event(self, event_id: str) -> PriceEvent | None:
