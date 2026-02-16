@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from apps.domain.events import parse_utc_datetime, to_utc_iso
 
-VALID_CHANNELS = {"in_app", "email"}
+VALID_CHANNELS = {"in_app", "email", "push"}
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,7 @@ class NotificationStore:
         status: str = "sent",
     ) -> Notification:
         if channel not in VALID_CHANNELS:
-            raise ValueError("channel must be one of in_app or email")
+            raise ValueError("channel must be one of in_app, email, or push")
 
         sent_at_dt = parse_utc_datetime(sent_at)
         return Notification(

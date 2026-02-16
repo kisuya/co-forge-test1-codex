@@ -4,13 +4,17 @@ from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Request, Response
 
+from apps.api.b2b_guard import B2BRateLimitException
+from apps.api.b2b_routes import register_b2b_routes
 from apps.api.auth_watchlist_routes import register_auth_watchlist_routes
+from apps.api.event_payloads import serialize_event as _serialize_event
 from apps.api.feedback_routes import register_feedback_routes
 from apps.api.notification_routes import register_notification_routes
+from apps.api.portfolio_routes import register_portfolio_routes
+from apps.api.push_token_routes import register_push_token_routes
 from apps.api.symbol_routes import register_symbol_routes
 from apps.api.threshold_routes import register_threshold_routes
 from apps.domain.events import TransientStoreError, parse_utc_datetime, price_event_store
-from apps.domain.reasons import event_reason_store
 from apps.infra.observability import log_error, log_info
 from apps.infra.postgres import (
     DatabaseConnectionError,
@@ -25,6 +29,9 @@ register_symbol_routes(app)
 register_threshold_routes(app)
 register_notification_routes(app)
 register_feedback_routes(app)
+register_portfolio_routes(app)
+register_push_token_routes(app)
+register_b2b_routes(app)
 
 _VALID_MARKETS = {"KR", "US"}
 _VALID_SESSIONS = {"pre", "regular", "after-hours", "closed"}
@@ -57,14 +64,6 @@ def db_health(request: Request) -> dict[str, str]:
         logger_name="oh_my_stock.api",
     )
     return {"status": status}
-
-
-def _serialize_event(event: object) -> dict[str, object]:
-    event_payload = event.to_dict()
-    reasons = [reason.to_dict() for reason in event_reason_store.list_by_event(event_payload["id"])]
-    event_payload["reasons"] = reasons
-    event_payload.setdefault("portfolio_impact", None)
-    return event_payload
 
 
 def _parse_optional_datetime(value: str | None, *, field_name: str) -> datetime | None:
@@ -140,7 +139,7 @@ def list_events(request: Request) -> dict[str, object]:
 
 
 @app.get("/v1/events/{event_id}")
-def get_event_detail(event_id: str) -> dict[str, object]:
+def get_event_detail(event_id: str, request: Request) -> dict[str, object]:
     event = price_event_store.get_event(event_id)
     if event is None:
         raise HTTPException(
@@ -149,7 +148,7 @@ def get_event_detail(event_id: str) -> dict[str, object]:
             message="Event not found",
             details={"event_id": event_id},
         )
-    return {"event": _serialize_event(event)}
+    return {"event": _serialize_event(event, request=request)}
 
 
 @app.exception_handler(TransientStoreError)
@@ -169,6 +168,22 @@ def handle_transient_store_error(exc: TransientStoreError, request_id: str) -> R
         "retryable": True,
     }
     return Response(status_code=503, payload=payload)
+
+
+@app.exception_handler(B2BRateLimitException)
+def handle_b2b_rate_limit(exc: B2BRateLimitException, request_id: str) -> Response:
+    payload = {
+        "code": "rate_limit_exceeded",
+        "message": "Rate limit exceeded",
+        "details": {"retry_after_seconds": exc.retry_after_seconds},
+        "request_id": request_id,
+        "retryable": True,
+    }
+    return Response(
+        status_code=429,
+        payload=payload,
+        headers={"retry-after": str(exc.retry_after_seconds)},
+    )
 
 
 @app.exception_handler(HTTPException)

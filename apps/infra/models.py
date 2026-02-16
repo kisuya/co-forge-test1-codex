@@ -9,6 +9,8 @@ CORE_TABLES = (
     "price_events",
     "event_reasons",
     "notifications",
+    "portfolio_holdings",
+    "push_tokens",
 )
 
 _UTC_DEFAULT = "STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')"
@@ -97,9 +99,41 @@ _CREATE_STATEMENTS = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_notifications_user_id_sent_at ON notifications(user_id, sent_at_utc DESC)",
+    f"""
+    CREATE TABLE IF NOT EXISTS portfolio_holdings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      symbol TEXT NOT NULL,
+      qty REAL NOT NULL CHECK (qty > 0),
+      avg_price REAL NOT NULL CHECK (avg_price > 0),
+      created_at_utc TEXT NOT NULL DEFAULT ({_UTC_DEFAULT}),
+      updated_at_utc TEXT NOT NULL DEFAULT ({_UTC_DEFAULT}),
+      UNIQUE (user_id, symbol),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_user_symbol
+    ON portfolio_holdings(user_id, symbol)
+    """,
+    f"""
+    CREATE TABLE IF NOT EXISTS push_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token TEXT NOT NULL,
+      platform TEXT NOT NULL CHECK (platform IN ('ios', 'android')),
+      created_at_utc TEXT NOT NULL DEFAULT ({_UTC_DEFAULT}),
+      updated_at_utc TEXT NOT NULL DEFAULT ({_UTC_DEFAULT}),
+      UNIQUE (user_id, token),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_push_tokens_user_id ON push_tokens(user_id)",
 )
 
 _DROP_STATEMENTS = (
+    "DROP TABLE IF EXISTS push_tokens",
+    "DROP TABLE IF EXISTS portfolio_holdings",
     "DROP TABLE IF EXISTS notifications",
     "DROP TABLE IF EXISTS event_reasons",
     "DROP TABLE IF EXISTS price_events",
