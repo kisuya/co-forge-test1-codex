@@ -1,105 +1,33 @@
 # Architecture: oh-my-stock
 
-## 1) System Type
-- **Modular Monolith + Worker** (초기 MVP)
-- 구성:
-  - `apps/web` (Next.js, 사용자 UI)
-  - `apps/api` (FastAPI, 도메인 API)
-  - `apps/worker` (비동기 수집/탐지/원인 점수화)
-  - `PostgreSQL` (영속 데이터)
-  - `Redis` (큐, 캐시, 레이트리밋)
+## 1) Current Architecture Decision (Project 001)
+- 초기 P0는 `Modular Monolith + Worker responsibilities`를 유지하되, 외부 인프라 없이 동작 가능한 백엔드 이벤트 루프를 먼저 구현했다.
+- API 계층, 도메인 상태 저장소, 워커 로직(감지/원인/알림)을 분리해 규칙 검증과 테스트를 빠르게 반복할 수 있도록 했다.
+- 데이터 저장은 UTC 기준으로 정규화하고, 원인 후보는 `source_url`이 없는 경우 노출하지 않는 정책을 시스템 규칙으로 강제했다.
 
-이 선택은 MVP 속도와 운영 단순성을 우선하면서도, 추후 워커 분리 확장이 가능하도록 한다.
+## 2) Key Decisions and Rationale
 
-## 2) Tech Stack Rationale
-- Next.js + TypeScript: 사용자 화면/SSR/SEO/생산성 균형
-- FastAPI + Python: 데이터 수집/점수화 로직 개발 속도 우수
-- PostgreSQL: 이벤트/관계형 데이터 무결성 보장
-- Redis: 저지연 큐/캐시 처리로 알림 지연 최소화
+### Decision: Rule-based detection/reason pipeline first
+- Chose: 급등락 감지, 디바운스, 원인 점수화를 규칙 기반으로 먼저 구현
+- Because: P0에서 설명 가능성과 테스트 안정성이 중요했고, 빠르게 회귀 테스트를 구축해야 했다
+- Trade-off: 복합 이벤트에서 정밀도 확장은 이후 단계가 필요
 
-## 3) High-Level Flow
-1. 스케줄러가 KR/US 시세와 이벤트 소스(공시/뉴스)를 주기 수집
-2. 변동 임계값을 초과하면 이벤트 후보 생성
-3. 원인 매칭기가 시간창/키워드/소스 신뢰도로 원인 후보 1~3개 점수화
-4. 원인 카드 저장 후 알림 서비스가 인앱/이메일 발송
-5. 사용자는 웹에서 이벤트 히스토리와 근거 링크 조회
+### Decision: Standard retryable error schema
+- Chose: API 실패 응답을 `code/message/details/request_id`로 통일하고, 일시 장애는 retryable 형태로 명시
+- Because: 클라이언트가 재시도 가능 여부를 일관되게 판단할 수 있어야 했다
+- Trade-off: 세부 오류 분류는 향후 운영 데이터 기반으로 고도화가 필요
 
-## 4) Directory Structure (proposed)
-```text
-.
-├─ apps/
-│  ├─ web/                # Next.js (App Router)
-│  ├─ api/                # FastAPI (REST)
-│  └─ worker/             # Celery/RQ worker
-├─ packages/
-│  └─ schemas/            # OpenAPI/JSON schema, 공통 타입
-├─ infra/
-│  ├─ docker/             # docker-compose, local infra
-│  └─ migrations/         # DB migration scripts
-├─ docs/
-└─ tests/
-```
+### Decision: In-memory persistence for this phase
+- Chose: 이벤트/원인/알림/관심종목 저장소를 인메모리로 두고 테스트 주도 구현
+- Because: 외부 DB/큐 도입 전에 도메인 규칙 검증을 빠르게 마치기 위한 선택
+- Trade-off: 재시작 내구성/동시성/운영 확장성은 보장하지 않음
+- Revisit when: 프론트엔드 연동과 실제 사용 흐름 검증 단계에서 PostgreSQL/Redis 기반으로 전환
 
-## 5) Data Model (MVP)
-- `users`
-  - id, email, password_hash, locale, created_at
-- `watchlists`
-  - id, user_id, name, created_at
-- `watchlist_items`
-  - id, watchlist_id, symbol, market(KR/US), created_at
-- `price_events`
-  - id, symbol, market, change_pct, window_minutes, detected_at_utc, session_label
-- `event_reasons`
-  - id, event_id, rank(1..3), reason_type, confidence_score, summary, source_url, published_at
-- `notifications`
-  - id, user_id, event_id, channel(in_app/email), sent_at, status
-- `feedback`
-  - id, user_id, event_id, reason_id, vote(helpful/not_helpful), created_at
+### Decision: Backend-first scope caused product gap
+- Observation: 기능을 백엔드 중심으로 잘게 나누면서 사용자가 직접 검증할 프론트엔드 흐름이 빠졌다
+- Action: 다음 프로젝트부터 기능 단위를 사용자 시나리오 기준 vertical slice로 정의하고, 프론트엔드+백엔드 통합 검증을 완료 기준으로 채택한다
 
-## 6) API Design (MVP)
-### Auth
-- `POST /v1/auth/signup`
-- `POST /v1/auth/login`
-
-### Watchlist
-- `GET /v1/watchlists`
-- `POST /v1/watchlists/items`
-- `DELETE /v1/watchlists/items/{item_id}`
-
-### Events
-- `GET /v1/events?symbol=&market=&from=&to=`
-- `GET /v1/events/{event_id}`
-
-### Feedback
-- `POST /v1/events/{event_id}/feedback`
-
-### Health
-- `GET /health`
-
-## 7) Key Decisions
-### 아키텍처 경계
-**Chose**: 웹/API/워커 3모듈의 모듈러 모놀리스
-**Over**: 초기 마이크로서비스 분할
-**Because**: 초기 속도와 디버깅 단순성이 중요
-**Trade-offs**: 팀/트래픽 증가 시 배포 단위 분리 필요
-**Revisit when**: 월간 활성 사용자 10만+, 워커 지연이 SLA 초과
-
-### 이벤트 소스 전략
-**Chose**: 공시+신뢰 뉴스 우선(SEC/OPEN DART/상용 시세)
-**Over**: 소셜/커뮤니티 데이터 우선
-**Because**: 근거 신뢰도와 설명 가능성 확보
-**Trade-offs**: 속보성 일부 손해 가능
-**Revisit when**: 사용자 요구가 속보성 중심으로 이동
-
-### 원인 추론 방식
-**Chose**: 규칙 기반 + 점수화(시간 근접도, 출처 신뢰도, 주제 일치)
-**Over**: 초기부터 대형 ML 모델 단일 의존
-**Because**: MVP에서 예측 가능성과 디버깅 용이성 중요
-**Trade-offs**: 복잡 이벤트에서 정밀도 한계
-**Revisit when**: 피드백 데이터 50k+ 축적
-
-## 8) Non-Functional Requirements
-- API 응답 p95 < 300ms(조회 API), 알림 지연 p95 < 60s
-- 서비스 가용성 99.5%+
-- 모든 외부 소스 호출에 타임아웃/재시도/서킷브레이커 적용
-- 감사 가능성: 원인 카드마다 근거 URL/시각/점수 저장
+## 3) Next-Phase Architecture Guardrails
+- 기능 정의는 API/워커 작업 단위가 아니라 사용자 가치 흐름 단위로 작성한다.
+- 각 핵심 기능은 화면 진입점, 서버 처리, 결과 확인까지 하나의 테스트 가능한 시나리오를 가진다.
+- 인프라 전환(실DB/큐, 실제 FastAPI 런타임)은 프론트엔드 E2E 흐름과 함께 단계적으로 도입한다.

@@ -1,0 +1,65 @@
+Project: project-001-p0-core-loop - P0 핵심 이벤트 루프 구축
+Started: 2026-02-16
+Status: Not started
+Agent: codex
+
+Features: 7 pending
+Previous: 없음 (첫 프로젝트)
+
+No progress yet. Run init.sh to begin.
+
+---
+Session: 0
+0 (2026-02-16)
+Features completed: none
+Features remaining: 7 pending, 0 blocked
+Test status: all pass
+Recent commits:
+8ef2505 chore: initialize forge harness and project-001 scope
+07be982 Initial commit
+
+---
+Session: 2 (2026-02-16)
+Features completed: none
+Features remaining: 7 pending, 0 blocked
+Test status: all pass
+Recent commits:
+8ef2505 chore: initialize forge harness and project-001 scope
+07be982 Initial commit
+
+---
+Session: 3 (2026-02-16)
+Features completed: none
+Features remaining: 7 pending, 0 blocked
+Test status: all pass
+Recent commits:
+8ef2505 chore: initialize forge harness and project-001 scope
+07be982 Initial commit
+
+---
+Session: 4 (2026-02-17)
+Features done (all-time): none
+Features remaining: 7 pending, 0 blocked
+Test status: all pass
+Recent commits:
+8ef2505 chore: initialize forge harness and project-001 scope
+07be982 Initial commit
+
+---
+Session: 5 (2026-02-17)
+Features done (all-time): none
+Features remaining: 7 pending, 0 blocked
+Test status: all pass
+Recent commits:
+8ef2505 chore: initialize forge harness and project-001 scope
+07be982 Initial commit
+
+---
+Session: 6 (2026-02-17)
+Features done (all-time): infra-001, watch-001, detect-001, reason-001, notify-001, event-001, event-002
+Features remaining: 0 pending, 0 blocked
+Test status: all pass
+Recent commits:
+0b0e0eb chore: add forge upgrade flow and align project paths
+8ef2505 chore: initialize forge harness and project-001 scope
+07be982 Initial commit

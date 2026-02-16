@@ -1,0 +1,75 @@
+{
+  "project": "project-001-p0-core-loop",
+  "goal": "2주 내 P0 전체 이벤트 루프를 동작 가능한 MVP로 완성",
+  "agent": "codex",
+  "features": [
+    {
+      "id": "infra-001",
+      "name": "FastAPI 앱 골격과 표준 오류 응답 스키마 구성",
+      "status": "done",
+      "priority": 1,
+      "test_file": "tests/api/test_health_and_error_schema.py",
+      "depends_on": []
+    },
+    {
+      "id": "watch-001",
+      "name": "관심 종목 등록/삭제 API 구현 (KR/US, 중복 방지)",
+      "status": "done",
+      "priority": 2,
+      "test_file": "tests/api/test_watchlist_items_api.py",
+      "depends_on": [
+        "infra-001"
+      ]
+    },
+    {
+      "id": "detect-001",
+      "name": "급등락 감지 규칙, 디바운스, UTC 이벤트 저장 구현",
+      "status": "done",
+      "priority": 3,
+      "test_file": "tests/worker/test_price_event_detection.py",
+      "depends_on": [
+        "infra-001"
+      ]
+    },
+    {
+      "id": "reason-001",
+      "name": "원인 후보 1~3개 점수화 및 source_url 필수 노출 규칙 구현",
+      "status": "done",
+      "priority": 4,
+      "test_file": "tests/worker/test_reason_ranking.py",
+      "depends_on": [
+        "detect-001"
+      ]
+    },
+    {
+      "id": "notify-001",
+      "name": "인앱/이메일 알림 발송과 30분 재알림 쿨다운 적용",
+      "status": "done",
+      "priority": 5,
+      "test_file": "tests/worker/test_notification_dispatch.py",
+      "depends_on": [
+        "reason-001"
+      ]
+    },
+    {
+      "id": "event-001",
+      "name": "최근 30일 이벤트 히스토리 목록/상세 조회 API 구현",
+      "status": "done",
+      "priority": 6,
+      "test_file": "tests/api/test_events_history_api.py",
+      "depends_on": [
+        "reason-001"
+      ]
+    },
+    {
+      "id": "event-002",
+      "name": "히스토리 API 재시도 가능한 표준 오류 메시지 처리",
+      "status": "done",
+      "priority": 7,
+      "test_file": "tests/api/test_events_error_response.py",
+      "depends_on": [
+        "event-001"
+      ]
+    }
+  ]
+}
