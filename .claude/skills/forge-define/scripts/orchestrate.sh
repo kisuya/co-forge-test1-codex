@@ -97,7 +97,7 @@ Read AGENTS.md first, then follow these instructions.
 5. Write tests for the feature
 6. Run: ./.forge/scripts/test_fast.sh
 7. If tests pass, update features.json: change that feature's status to "done"
-8. Git commit: [FEATURE-ID] brief description
+8. Git commit with message: [FEATURE-ID] brief description (skip if git is unavailable)
 9. If time remains, pick the next available feature and repeat from step 3
 
 ## Current Project
@@ -120,7 +120,7 @@ run_coding_session() {
   # Run agent in background + wait so that trap can fire on Ctrl+C.
   local exit_code=0
   if [ "$AGENT" = "codex" ]; then
-    codex exec --full-auto "$1" &
+    codex exec --sandbox danger-full-access "$1" &
   else
     # --dangerously-skip-permissions: autonomous mode requires no human approval.
     # The human gate is at forge-project and forge-retro, not during coding.
