@@ -4,5 +4,3 @@
 `/forge-project` 시작 시 우선순위를 재검토합니다.
 
 <!-- Format: - [source] 설명 -->
-- [discover] 브로커 연동 기반 포트폴리오 자동 동기화 (P2 후보)
-- [discover] 장전/장후 전용 알림 규칙 세분화 (P1 후보)
