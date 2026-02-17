@@ -1,15 +1,15 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { Toast } from "@/components/toast";
 import { ReasonFeedbackButtons } from "@/components/reason-feedback-buttons";
+import { Toast } from "@/components/toast";
+import { WatchlistComposer } from "@/components/watchlist-composer";
 import {
   ApiClientError,
   type ApiClient,
   type EventPayload,
   type EventReason,
-  type WatchlistItem,
 } from "@/lib/api-client";
 
 type LoadStatus = "loading" | "success" | "error";
@@ -62,10 +62,6 @@ function toUiError(error: unknown, fallbackMessage: string): UiError {
 }
 
 export function WatchlistEventsDashboard({ client }: DashboardProps): JSX.Element {
-  const [watchlistStatus, setWatchlistStatus] = useState<LoadStatus>("loading");
-  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
-  const [watchlistError, setWatchlistError] = useState<UiError | null>(null);
-
   const [eventsStatus, setEventsStatus] = useState<LoadStatus>("loading");
   const [events, setEvents] = useState<EventPayload[]>([]);
   const [eventsError, setEventsError] = useState<UiError | null>(null);
@@ -75,23 +71,7 @@ export function WatchlistEventsDashboard({ client }: DashboardProps): JSX.Elemen
   const [detailEvent, setDetailEvent] = useState<EventPayload | null>(null);
   const [detailError, setDetailError] = useState<UiError | null>(null);
 
-  const [symbol, setSymbol] = useState("");
-  const [market, setMarket] = useState<"KR" | "US">("US");
-  const [isSubmitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ kind: "error" | "success"; message: string } | null>(null);
-
-  async function loadWatchlist(): Promise<void> {
-    setWatchlistStatus("loading");
-    setWatchlistError(null);
-    try {
-      const response = await client.listWatchlistItems();
-      setWatchlistItems(response.items);
-      setWatchlistStatus("success");
-    } catch (error) {
-      setWatchlistError(toUiError(error, "관심종목을 불러오지 못했습니다."));
-      setWatchlistStatus("error");
-    }
-  }
 
   async function loadEvents(): Promise<void> {
     setEventsStatus("loading");
@@ -110,7 +90,6 @@ export function WatchlistEventsDashboard({ client }: DashboardProps): JSX.Elemen
   }
 
   useEffect(() => {
-    void loadWatchlist();
     void loadEvents();
   }, []);
 
@@ -148,40 +127,6 @@ export function WatchlistEventsDashboard({ client }: DashboardProps): JSX.Elemen
     };
   }, [client, selectedEventId]);
 
-  async function handleAddWatchlistItem(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    if (!symbol.trim()) {
-      setToast({ kind: "error", message: "종목 코드를 입력하세요." });
-      return;
-    }
-
-    setSubmitting(true);
-    setToast(null);
-    try {
-      await client.createWatchlistItem({ symbol: symbol.trim().toUpperCase(), market });
-      setSymbol("");
-      setToast({ kind: "success", message: "관심종목이 저장되었습니다." });
-      await loadWatchlist();
-    } catch (error) {
-      const message = error instanceof ApiClientError ? error.payload.message : "관심종목 저장에 실패했습니다.";
-      setToast({ kind: "error", message });
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleDeleteWatchlistItem(itemId: string): Promise<void> {
-    setToast(null);
-    try {
-      await client.deleteWatchlistItem(itemId);
-      setToast({ kind: "success", message: "관심종목이 삭제되었습니다." });
-      await loadWatchlist();
-    } catch (error) {
-      const message = error instanceof ApiClientError ? error.payload.message : "관심종목 삭제에 실패했습니다.";
-      setToast({ kind: "error", message });
-    }
-  }
-
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedEventId) ?? detailEvent,
     [detailEvent, events, selectedEventId],
@@ -189,48 +134,7 @@ export function WatchlistEventsDashboard({ client }: DashboardProps): JSX.Elemen
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <section style={{ border: "1px solid #cbd5e1", borderRadius: 12, background: "#fff", padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>관심종목</h2>
-        <form onSubmit={handleAddWatchlistItem} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-          <input
-            aria-label="종목코드"
-            value={symbol}
-            onChange={(event) => setSymbol(event.currentTarget.value)}
-            placeholder="예: AAPL"
-            style={{ flex: 1, minWidth: 140, border: "1px solid #cbd5e1", borderRadius: 8, padding: "10px 12px" }}
-          />
-          <select
-            aria-label="시장"
-            value={market}
-            onChange={(event) => setMarket(event.currentTarget.value as "KR" | "US")}
-            style={{ border: "1px solid #cbd5e1", borderRadius: 8, padding: "10px 12px" }}
-          >
-            <option value="US">US</option>
-            <option value="KR">KR</option>
-          </select>
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "저장 중..." : "추가"}
-          </button>
-        </form>
-
-        {watchlistStatus === "loading" ? <p data-testid="watchlist-loading">관심종목 로딩 중...</p> : null}
-        {watchlistStatus === "error" && watchlistError ? <p role="alert">{watchlistError.message}</p> : null}
-        {watchlistStatus === "success" && watchlistItems.length === 0 ? (
-          <p data-testid="watchlist-empty">등록된 관심종목이 없습니다.</p>
-        ) : null}
-        {watchlistStatus === "success" && watchlistItems.length > 0 ? (
-          <ul style={{ margin: 0, paddingLeft: 20 }}>
-            {watchlistItems.map((item) => (
-              <li key={item.id} style={{ marginBottom: 6 }}>
-                {item.market}:{item.symbol}{" "}
-                <button type="button" onClick={() => void handleDeleteWatchlistItem(item.id)}>
-                  삭제
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
+      <WatchlistComposer client={client} onToast={setToast} />
 
       <section style={{ border: "1px solid #cbd5e1", borderRadius: 12, background: "#fff", padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>이벤트 피드</h2>
