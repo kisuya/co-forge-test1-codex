@@ -148,7 +148,7 @@ def get_event_detail(event_id: str, request: Request) -> dict[str, object]:
             message="Event not found",
             details={"event_id": event_id},
         )
-    return {"event": _serialize_event(event, request=request)}
+    return {"event": _serialize_event(event, request=request, include_reason_state=True)}
 
 
 @app.exception_handler(TransientStoreError)
