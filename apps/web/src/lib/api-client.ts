@@ -73,6 +73,40 @@ export type ConfidenceBreakdown = {
   score_breakdown: ConfidenceComponentBreakdown & { total: number };
 };
 
+export type ReasonReportStatus = "received" | "reviewed" | "resolved";
+
+export type ReasonRevision = {
+  id: string;
+  report_id: string;
+  event_id: string;
+  reason_id: string;
+  revision_reason: string;
+  confidence_before: number;
+  confidence_after: number;
+  revised_at_utc: string;
+};
+
+export type ReasonStatusTransition = {
+  report_id: string;
+  event_id: string;
+  reason_id: string;
+  from_status: ReasonReportStatus | null;
+  to_status: ReasonReportStatus;
+  changed_at_utc: string;
+  note: string | null;
+};
+
+export type ReasonRevisionHistoryResponse = {
+  event_id: string;
+  revision_history: ReasonRevision[];
+  status_transitions: ReasonStatusTransition[];
+  count: number;
+  meta: {
+    has_revision_history: boolean;
+    latest_status: ReasonReportStatus | null;
+  };
+};
+
 export type EventPayload = {
   id: string;
   symbol: string;
@@ -171,6 +205,13 @@ export type ApiClient = {
     reasonId: string;
     feedback: "helpful" | "not_helpful";
   }) => Promise<{ feedback: Record<string, unknown>; overwritten: boolean }>;
+  submitReasonReport: (input: {
+    eventId: string;
+    reasonId: string;
+    reportType: "inaccurate_reason" | "wrong_source" | "outdated_information" | "other";
+    note?: string;
+  }) => Promise<{ report_id: string; status: ReasonReportStatus; queued: boolean }>;
+  listReasonRevisions: (eventId: string) => Promise<ReasonRevisionHistoryResponse>;
   listNotifications: () => Promise<NotificationListResponse>;
   markNotificationRead: (notificationId: string) => Promise<{
     notification: NotificationItem;
@@ -288,6 +329,17 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         body: { reason_id: reasonId, feedback },
         requireAuth: true,
       }),
+    submitReasonReport: ({ eventId, reasonId, reportType, note = "" }) =>
+      request<{ report_id: string; status: ReasonReportStatus; queued: boolean }>(
+        `/v1/events/${eventId}/reason-reports`,
+        {
+          method: "POST",
+          body: { reason_id: reasonId, report_type: reportType, note },
+          requireAuth: true,
+        },
+      ),
+    listReasonRevisions: (eventId) =>
+      request<ReasonRevisionHistoryResponse>(`/v1/events/${eventId}/reason-revisions`, { requireAuth: true }),
     listNotifications: () => request<NotificationListResponse>("/v1/notifications", { requireAuth: true }),
     markNotificationRead: (notificationId) =>
       request<{ notification: NotificationItem; unread_count: number }>(
