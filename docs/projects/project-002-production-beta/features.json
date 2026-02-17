@@ -1,0 +1,453 @@
+{
+  "project": "project-002-production-beta",
+  "goal": "4주 내 프론트엔드+백엔드 통합 사용자 흐름과 운영 준비 기능을 구축해 내부/초기 사용자에게 바로 쓸 수 있는 베타를 출시한다.",
+  "agent": "codex",
+  "features": [
+    {
+      "id": "infra-002",
+      "name": "PostgreSQL 연결 설정과 세션 팩토리 구성",
+      "status": "done",
+      "priority": 1,
+      "test_file": "tests/infra/test_postgres_session.py",
+      "depends_on": [],
+      "description": "DATABASE_URL로 SQLAlchemy engine/session factory를 구성하고 시작 시 연결 검증을 수행한다. 성공 시 DB health가 ok를 반환해야 하며 연결 실패는 request_id 포함 구조화 로그와 함께 fail-fast 처리한다. pool_size/timeout 기본값을 환경변수로 조정 가능하게 둔다."
+    },
+    {
+      "id": "infra-003",
+      "name": "핵심 도메인 SQLAlchemy 모델(users/watchlists/events/reasons/notifications) 정의",
+      "status": "done",
+      "priority": 2,
+      "test_file": "tests/infra/test_models_schema.py",
+      "depends_on": [
+        "infra-002"
+      ],
+      "description": "users/watchlists/watchlist_items/price_events/event_reasons/notifications 모델을 정의하고 FK/unique/index 제약을 명시한다. metadata 생성 시 스키마가 일관돼야 하며 제약 위반 입력은 DB 에러로 검출되어야 한다. created_at 계열 필드는 UTC 기본값을 사용한다."
+    },
+    {
+      "id": "infra-004",
+      "name": "Alembic 초기 마이그레이션 생성 및 적용 경로 구성",
+      "status": "done",
+      "priority": 3,
+      "test_file": "tests/infra/test_alembic_migration.py",
+      "depends_on": [
+        "infra-003"
+      ],
+      "description": "Alembic 초기 revision으로 핵심 테이블 생성/롤백 경로를 구성한다. 신규 DB에서 upgrade head 한 번으로 스키마가 준비되고 downgrade base가 실패 없이 동작해야 한다. 동일 마이그레이션 재적용은 안전한 no-op 상태를 보장한다."
+    },
+    {
+      "id": "infra-005",
+      "name": "Redis 클라이언트 추상화(디바운스/쿨다운 공용) 구현",
+      "status": "done",
+      "priority": 4,
+      "test_file": "tests/infra/test_redis_abstraction.py",
+      "depends_on": [],
+      "description": "Redis 공용 래퍼(get/set/ttl/lock)와 debounce/cooldown 헬퍼를 제공한다. 연결 장애 시 재시도 가능한 오류 타입을 반환하고 서비스는 크래시하지 않아야 한다. 키 prefix 규칙과 TTL 최소값(1초 이상) 경계를 강제한다."
+    },
+    {
+      "id": "infra-006",
+      "name": "Repository/Unit-of-Work 트랜잭션 베이스 구현",
+      "status": "done",
+      "priority": 5,
+      "test_file": "tests/infra/test_unit_of_work.py",
+      "depends_on": [
+        "infra-002"
+      ],
+      "description": "Repository + UnitOfWork 추상화로 트랜잭션 begin/commit/rollback을 표준화한다. 정상 경로는 atomic commit, 예외 경로는 rollback 후 오류 전파가 보장되어야 한다. 중첩 트랜잭션/중복 commit은 금지하고 명확한 오류를 낸다."
+    },
+    {
+      "id": "auth-001",
+      "name": "이메일 가입/로그인 API와 비밀번호 해시 저장 구현",
+      "status": "done",
+      "priority": 6,
+      "test_file": "tests/api/test_auth_login_signup_api.py",
+      "depends_on": [
+        "infra-002"
+      ],
+      "description": "POST /v1/auth/signup,/login에서 email/password를 받아 사용자 생성과 인증을 처리한다. 성공 시 user_id와 access token을 반환하고 비밀번호는 bcrypt 해시로만 저장한다. 중복 이메일은 409, 잘못된 자격증명은 401 표준 오류를 반환한다."
+    },
+    {
+      "id": "auth-002",
+      "name": "JWT 인증 가드와 보호 라우트 미들웨어 적용",
+      "status": "done",
+      "priority": 7,
+      "test_file": "tests/api/test_auth_guard.py",
+      "depends_on": [
+        "auth-001"
+      ],
+      "description": "JWT bearer 인증 미들웨어를 도입해 보호 API 접근 전에 사용자 컨텍스트를 주입한다. 유효 토큰은 요청을 통과시키고 만료/서명 오류는 401, 권한 없는 리소스 접근은 403으로 차단한다. 허용 clock skew는 30초로 제한한다."
+    },
+    {
+      "id": "ops-001",
+      "name": "api/web/worker/postgres/redis 로컬 docker compose 스택 구성",
+      "status": "done",
+      "priority": 8,
+      "test_file": "tests/ops/test_docker_compose_services.py",
+      "depends_on": [],
+      "description": "api/web/worker/postgres/redis를 포함한 docker compose 스택을 구성하고 의존 서비스 healthcheck를 연결한다. docker compose up 시 핵심 서비스가 healthy 상태에 도달해야 한다. down 시 데이터 볼륨 유지/초기화 옵션을 명시한다."
+    },
+    {
+      "id": "ops-002",
+      "name": ".env.example 및 로컬 부트/헬스체크 스크립트 정리",
+      "status": "done",
+      "priority": 9,
+      "test_file": "tests/ops/test_bootstrap_scripts.py",
+      "depends_on": [],
+      "description": "필수 환경변수를 .env.example에 정리하고 bootstrap 스크립트(install/migrate/health)를 제공한다. 누락 변수가 있으면 시작 전에 항목별 오류를 출력해야 한다. 성공 시 단계별 완료 로그를 남겨 처음 실행 흐름을 재현 가능하게 만든다."
+    },
+    {
+      "id": "ops-003",
+      "name": "API/워커 구조화 로그와 request_id 전파 체계 적용",
+      "status": "done",
+      "priority": 10,
+      "test_file": "tests/ops/test_request_id_logging.py",
+      "depends_on": [],
+      "description": "API와 워커 로그를 JSON 구조로 통일하고 request_id를 동기/비동기 경로에 전파한다. 성공/실패 로그 모두 ts, level, request_id, feature 필드를 가져야 한다. 민감 정보(email/token/password)는 마스킹 처리한다."
+    },
+    {
+      "id": "watch-002",
+      "name": "관심종목 등록/삭제 API를 사용자 스코프 DB 영속화로 전환",
+      "status": "done",
+      "priority": 11,
+      "test_file": "tests/api/test_watchlist_items_db_api.py",
+      "depends_on": [
+        "infra-006",
+        "auth-002"
+      ],
+      "description": "관심종목 등록/삭제를 인메모리에서 DB 영속화로 전환하고 user scope unique(user,market,symbol)를 보장한다. 중복 등록은 200과 기존 리소스를 반환해야 하며 타 사용자 리소스 삭제 시 404를 반환한다. 성공 응답에는 생성 시각 UTC를 포함한다."
+    },
+    {
+      "id": "watch-003",
+      "name": "관심종목 목록 조회 API(페이지네이션) 추가",
+      "status": "done",
+      "priority": 12,
+      "test_file": "tests/api/test_watchlist_list_api.py",
+      "depends_on": [
+        "watch-002"
+      ],
+      "description": "GET /v1/watchlists/items?page&size API를 추가해 사용자 관심종목을 페이지네이션으로 조회한다. 정상 시 items+total+page 메타를 반환한다. page<1 또는 size 범위 초과는 400으로 거부하고 기본값은 page=1,size=20을 사용한다."
+    },
+    {
+      "id": "watch-004",
+      "name": "KR/US 종목 검색 API(캐시 포함) 추가",
+      "status": "done",
+      "priority": 13,
+      "test_file": "tests/api/test_symbol_search_api.py",
+      "depends_on": [
+        "watch-002"
+      ],
+      "description": "GET /v1/symbols/search?q&market로 KR/US 종목 검색을 제공하고 결과를 Redis 캐시에 저장한다. 정상 시 ticker/name/market 목록을 반환하고 빈 결과는 200 빈 배열을 반환한다. q 길이 2 미만 또는 market 오류는 400으로 처리한다."
+    },
+    {
+      "id": "detect-002",
+      "name": "가격 수집→이벤트 생성 워커를 DB 영속화 경로로 전환",
+      "status": "done",
+      "priority": 14,
+      "test_file": "tests/worker/test_detection_worker_persistence.py",
+      "depends_on": [
+        "infra-006"
+      ],
+      "description": "가격 입력 이벤트를 받아 임계값 초과 시 price_event를 DB에 저장하는 워커 경로를 구현한다. 정상 경로는 이벤트 생성 후 저장 ID를 반환해야 한다. 저장 실패는 재시도 큐로 넘기고 원인은 로그에 남긴다."
+    },
+    {
+      "id": "detect-003",
+      "name": "감지 디바운스를 Redis 기반으로 전환",
+      "status": "done",
+      "priority": 15,
+      "test_file": "tests/worker/test_detection_redis_debounce.py",
+      "depends_on": [
+        "detect-002",
+        "infra-005"
+      ],
+      "description": "Redis debounce 키(symbol,window,direction)를 사용해 동일 구간 중복 이벤트 생성을 차단한다. TTL 내 재발생은 suppress 처리되어 신규 이벤트를 만들지 않아야 한다. TTL 경계 통과 후에는 재감지가 허용된다."
+    },
+    {
+      "id": "detect-004",
+      "name": "사용자별 임계값 설정 API 및 감지 파이프라인 연동",
+      "status": "done",
+      "priority": 16,
+      "test_file": "tests/worker/test_user_threshold_detection.py",
+      "depends_on": [
+        "watch-002",
+        "detect-002"
+      ],
+      "description": "사용자별 임계값 설정 API를 추가하고 감지 파이프라인에서 사용자 설정을 우선 적용한다. 사용자 설정이 없으면 글로벌 기본값을 사용한다. 임계값 범위가 0 이하 또는 50% 초과이면 400 오류를 반환한다."
+    },
+    {
+      "id": "detect-005",
+      "name": "KR/US 장전·정규장·장후 세션 라벨 분류기 도입",
+      "status": "done",
+      "priority": 17,
+      "test_file": "tests/worker/test_session_labeling.py",
+      "depends_on": [
+        "detect-002"
+      ],
+      "description": "KR/US 거래소 캘린더 기준으로 pre/regular/after-hours 세션 라벨러를 구현한다. 정상 시 이벤트에 session_label이 저장되어야 한다. 휴장일은 closed를 반환하고 개장/마감 경계 분(minute) 테스트를 포함한다."
+    },
+    {
+      "id": "reason-002",
+      "name": "SEC/DART/뉴스 소스 어댑터 인터페이스와 수집 파이프라인 정의",
+      "status": "done",
+      "priority": 18,
+      "test_file": "tests/worker/test_reason_source_adapters.py",
+      "depends_on": [],
+      "description": "SEC/DART/뉴스 어댑터 인터페이스(fetch_by_symbol,time_window)를 정의하고 공통 수집 파이프라인으로 조합한다. 일부 소스 실패 시 부분 결과는 유지되어야 한다. timeout/429는 retryable 오류로 표준화한다."
+    },
+    {
+      "id": "reason-003",
+      "name": "원인 점수 설명 필드(가중치/근거) 저장 및 조회 지원",
+      "status": "done",
+      "priority": 19,
+      "test_file": "tests/worker/test_reason_explainability.py",
+      "depends_on": [
+        "reason-002"
+      ],
+      "description": "reason 점수 계산 근거(가중치, 신뢰도, 시간근접도)를 explanation 필드로 저장/조회한다. 상세 응답에서 사용자가 왜 이 점수가 나왔는지 확인할 수 있어야 한다. explanation 필드 누락 시 스키마 검증에서 실패해야 한다."
+    },
+    {
+      "id": "reason-004",
+      "name": "source_url 유효성 검사와 실패 시 fallback 표시 규칙 적용",
+      "status": "done",
+      "priority": 20,
+      "test_file": "tests/worker/test_reason_source_url_validation.py",
+      "depends_on": [
+        "reason-003"
+      ],
+      "description": "source_url의 스킴/호스트 유효성을 검증하고 부적합 URL 후보는 사용자 노출 대상에서 제외한다. 후보가 0개가 되면 fallback 문구(근거 수집 중)를 반환한다. invalid URL은 내부 로그에 이유와 함께 기록한다."
+    },
+    {
+      "id": "notify-002",
+      "name": "인앱 알림 목록/읽음 처리 API 구현",
+      "status": "done",
+      "priority": 21,
+      "test_file": "tests/api/test_in_app_notifications_api.py",
+      "depends_on": [
+        "watch-002",
+        "auth-002"
+      ],
+      "description": "GET /v1/notifications와 PATCH /v1/notifications/{id}/read를 구현해 인앱 알림 조회/읽음 처리 흐름을 만든다. 정상 시 unread_count가 갱신되어야 한다. 타 사용자 알림 ID 접근은 404로 차단한다."
+    },
+    {
+      "id": "notify-003",
+      "name": "이메일 발송 어댑터 재시도/백오프 + 쿨다운 영속화 적용",
+      "status": "done",
+      "priority": 22,
+      "test_file": "tests/worker/test_email_notification_retry.py",
+      "depends_on": [
+        "notify-002",
+        "infra-005"
+      ],
+      "description": "이메일 발송 어댑터에 지수 백오프 재시도(최대 횟수)와 쿨다운 영속화를 적용한다. 일시 실패는 retrying 상태로 전환되고 최종 실패는 dead-letter에 기록되어야 한다. 재시도 간격과 최대 횟수는 설정값으로 제어한다."
+    },
+    {
+      "id": "notify-004",
+      "name": "푸시 알림 오케스트레이션 훅 추가",
+      "status": "done",
+      "priority": 23,
+      "test_file": "tests/worker/test_push_notification_orchestration.py",
+      "depends_on": [
+        "notify-003",
+        "push-001"
+      ],
+      "description": "푸시 알림 오케스트레이션 훅을 추가해 opt-in 사용자 토큰이 있으면 push 큐로 전달한다. push 실패는 인앱/이메일 발송 성공 여부에 영향 주지 않아야 한다. 미등록 토큰 사용자는 자동으로 스킵한다."
+    },
+    {
+      "id": "event-003",
+      "name": "이벤트 목록 API 페이지네이션/정렬/필터 고도화",
+      "status": "done",
+      "priority": 24,
+      "test_file": "tests/api/test_events_list_advanced_filters.py",
+      "depends_on": [
+        "infra-003"
+      ],
+      "description": "GET /v1/events에 symbol/market/from/to/session 필터와 정렬/커서 페이지네이션을 구현한다. 정상 시 커서 기반 다음 페이지를 제공해야 한다. 잘못된 날짜 포맷 또는 커서는 400 표준 오류를 반환한다."
+    },
+    {
+      "id": "event-004",
+      "name": "이벤트 상세 API에 원인 설명/포트폴리오 영향 슬롯 포함",
+      "status": "done",
+      "priority": 25,
+      "test_file": "tests/api/test_event_detail_explanations.py",
+      "depends_on": [
+        "event-003",
+        "reason-003"
+      ],
+      "description": "GET /v1/events/{id} 응답에 reason explanation과 portfolio_impact 슬롯을 포함한다. 데이터가 없는 경우 null을 명시적으로 반환한다. 기존 클라이언트 호환을 위해 필드 추가만 하고 기존 키는 유지한다."
+    },
+    {
+      "id": "event-005",
+      "name": "이벤트 API 전반 표준 오류/재시도 응답 정규화",
+      "status": "done",
+      "priority": 26,
+      "test_file": "tests/api/test_events_error_contract.py",
+      "depends_on": [
+        "event-003"
+      ],
+      "description": "events 도메인 오류 응답을 code/message/details/request_id/retryable로 정규화한다. transient 저장소 오류는 503 retryable=true를 반환해야 한다. validation 오류는 400 retryable=false로 명확히 구분한다."
+    },
+    {
+      "id": "feedback-001",
+      "name": "원인 카드 도움됨/부정확 피드백 API 구현",
+      "status": "done",
+      "priority": 27,
+      "test_file": "tests/api/test_reason_feedback_api.py",
+      "depends_on": [
+        "event-004",
+        "auth-002"
+      ],
+      "description": "POST /v1/events/{id}/feedback에서 helpful/not_helpful 피드백을 저장하고 reason_id 유효성을 검증한다. 동일 사용자의 중복 제출은 최근 값으로 overwrite한다. 유효하지 않은 reason_id는 400으로 거부한다."
+    },
+    {
+      "id": "feedback-002",
+      "name": "피드백 집계 API(원인 품질 모니터링용) 구현",
+      "status": "done",
+      "priority": 28,
+      "test_file": "tests/api/test_feedback_aggregation_api.py",
+      "depends_on": [
+        "feedback-001"
+      ],
+      "description": "피드백 집계 API를 만들어 기간/종목별 helpful 비율과 표본수를 반환한다. 표본수가 최소 기준 미만이면 low_confidence 플래그를 함께 반환한다. 필터 파라미터 오류는 400으로 처리한다."
+    },
+    {
+      "id": "portfolio-001",
+      "name": "포트폴리오 보유수량/평단 CRUD API 구현",
+      "status": "done",
+      "priority": 29,
+      "test_file": "tests/api/test_portfolio_holdings_api.py",
+      "depends_on": [
+        "infra-006",
+        "auth-002"
+      ],
+      "description": "포트폴리오 holding CRUD API(symbol,qty,avg_price)를 구현하고 사용자별 소유권을 강제한다. qty 또는 avg_price가 0 이하이면 400으로 거부한다. 동일 symbol은 upsert로 갱신한다."
+    },
+    {
+      "id": "portfolio-002",
+      "name": "이벤트별 추정 손익 영향 계산 로직 구현",
+      "status": "done",
+      "priority": 30,
+      "test_file": "tests/domain/test_portfolio_event_impact.py",
+      "depends_on": [
+        "portfolio-001",
+        "event-004"
+      ],
+      "description": "이벤트 변동률과 보유 수량/평단을 이용해 추정 손익 영향(금액/비율)을 계산한다. 상세 응답에서 portfolio_impact를 확인 가능해야 한다. 환율 데이터가 없으면 시장 기본 통화 기준으로 fallback 계산한다."
+    },
+    {
+      "id": "push-001",
+      "name": "모바일 푸시 토큰 등록/해지 API 구현",
+      "status": "done",
+      "priority": 31,
+      "test_file": "tests/api/test_push_token_api.py",
+      "depends_on": [
+        "auth-002"
+      ],
+      "description": "POST/DELETE /v1/push-tokens로 모바일 디바이스 토큰 등록/해지를 제공한다. 동일 토큰 중복 등록은 idempotent하게 처리한다. 플랫폼 값이 iOS/Android 외이면 400 오류를 반환한다."
+    },
+    {
+      "id": "b2b-001",
+      "name": "B2B API 키 인증 및 레이트리밋 미들웨어 구현",
+      "status": "done",
+      "priority": 32,
+      "test_file": "tests/api/test_b2b_auth_rate_limit.py",
+      "depends_on": [
+        "ops-003"
+      ],
+      "description": "X-API-Key 인증 미들웨어와 tenant별 분당 레이트리밋을 구현한다. 키 누락/만료는 401, 요청 한도 초과는 429와 retry-after 헤더를 반환한다. 키 식별자는 로그에 남기되 원문 키는 기록하지 않는다."
+    },
+    {
+      "id": "b2b-002",
+      "name": "B2B 이벤트 요약 조회 API 구현",
+      "status": "done",
+      "priority": 33,
+      "test_file": "tests/api/test_b2b_event_summary_api.py",
+      "depends_on": [
+        "event-003",
+        "b2b-001"
+      ],
+      "description": "GET /v1/b2b/events/summary에서 tenant 권한 범위 내 이벤트 요약을 제공한다. 기본 조회 범위는 최근 24시간, 최대 100건으로 제한한다. 미허용 symbol 요청은 필터에서 제거하고 감사 로그를 남긴다."
+    },
+    {
+      "id": "ui-001",
+      "name": "Next.js 앱 셸/인증 화면/API 클라이언트 베이스 구현",
+      "status": "done",
+      "priority": 34,
+      "test_file": "tests/web/test_auth_shell_flow.tsx",
+      "depends_on": [
+        "auth-002"
+      ],
+      "description": "Next.js 앱 셸과 로그인/회원가입 화면, 공통 API 클라이언트를 구현한다. 로그인 성공 시 대시보드로 이동하고 실패 시 필드 오류 및 토스트를 표시한다. 토큰 만료 시 자동 로그아웃/재로그인 유도를 처리한다."
+    },
+    {
+      "id": "ui-002",
+      "name": "관심종목 관리 + 이벤트 피드/상세 UI 연동",
+      "status": "done",
+      "priority": 35,
+      "test_file": "tests/web/test_watchlist_events_flow.tsx",
+      "depends_on": [
+        "ui-001",
+        "watch-002",
+        "event-004"
+      ],
+      "description": "관심종목 관리 화면과 이벤트 피드/상세 화면을 API와 연동한다. 로딩/빈 상태/오류 상태 UI를 분리해 보여줘야 한다. 상세의 source_url 클릭은 새 탭으로 열리고 접근 불가 링크는 비활성화한다."
+    },
+    {
+      "id": "ui-003",
+      "name": "알림/피드백/임계값 설정 UI 통합",
+      "status": "done",
+      "priority": 36,
+      "test_file": "tests/web/test_notifications_feedback_settings.tsx",
+      "depends_on": [
+        "ui-002",
+        "notify-002",
+        "feedback-001",
+        "detect-004"
+      ],
+      "description": "알림 센터, 원인 피드백 버튼, 사용자 임계값 설정 UI를 하나의 설정 흐름으로 통합한다. 저장 성공은 성공 토스트와 즉시 반영을 보여준다. 실패 시 optimistic update를 rollback하고 오류 안내를 표시한다."
+    },
+    {
+      "id": "e2e-001",
+      "name": "핵심 사용자 여정 E2E(가입→관심종목→이벤트→근거) 구축",
+      "status": "done",
+      "priority": 37,
+      "test_file": "tests/e2e/test_core_user_journey.py",
+      "depends_on": [
+        "ui-003",
+        "event-004"
+      ],
+      "description": "Playwright E2E로 signup→watchlist 추가→이벤트 확인→근거 링크 검증 흐름을 자동화한다. 핵심 단계는 스크린샷과 함께 assertion을 남긴다. flaky 완화를 위해 실패 시 1회 재시도한다."
+    },
+    {
+      "id": "e2e-002",
+      "name": "실패/재시도 UX E2E(오류 계약/쿨다운/재시도 안내) 구축",
+      "status": "done",
+      "priority": 38,
+      "test_file": "tests/e2e/test_retryable_error_ux.py",
+      "depends_on": [
+        "e2e-001",
+        "event-005"
+      ],
+      "description": "오류/재시도 UX E2E를 추가해 retryable 오류 배너, 재시도 버튼, 알림 쿨다운 동작을 검증한다. 사용자가 재시도 가능 여부를 화면에서 명확히 인지해야 한다. 비재시도 오류는 다른 안내 문구를 사용한다."
+    },
+    {
+      "id": "qa-001",
+      "name": "핵심 API 성능 스모크(p95) 및 보안 회귀 테스트 추가",
+      "status": "done",
+      "priority": 39,
+      "test_file": "tests/qa/test_perf_and_security_smoke.py",
+      "depends_on": [
+        "e2e-002"
+      ],
+      "description": "핵심 API p95 스모크와 인증/레이트리밋 보안 회귀 테스트를 구성한다. 임계치 초과 또는 취약 시나리오 실패 시 CI를 실패시켜야 한다. 결과는 아티팩트로 저장해 비교 가능하게 만든다."
+    },
+    {
+      "id": "release-001",
+      "name": "웹/백엔드/워커 테스트 CI 파이프라인과 베타 릴리즈 체크리스트 완성",
+      "status": "done",
+      "priority": 40,
+      "test_file": "tests/ops/test_ci_release_gate.py",
+      "depends_on": [
+        "qa-001"
+      ],
+      "description": "web/api/worker 테스트·린트·e2e를 묶은 CI 게이트와 베타 릴리즈 체크리스트 자동 검증을 구성한다. 필수 체크 항목 미충족 시 배포를 차단한다. 릴리즈 승인 로그와 버전 태깅 절차를 문서화한다."
+    }
+  ]
+}

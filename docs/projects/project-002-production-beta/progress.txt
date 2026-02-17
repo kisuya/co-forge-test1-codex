@@ -1,0 +1,69 @@
+Project: project-002-production-beta - 실사용 베타 완성 (1개월)
+Started: 2026-02-17
+Status: Not started
+Agent: (to be assigned)
+
+Features: 40 pending
+Previous: docs/projects/frontend-e2e-user-flow/retrospective.md
+
+No progress yet. Run init.sh to begin.
+
+---
+Session: 1 (2026-02-17)
+Features done (all-time): infra-002, infra-003, infra-004, infra-005, infra-006
+Features remaining: 35 pending, 0 blocked
+Test status: all pass
+Recent commits:
+a85c707 chore: upgrade forge harness and align session rules
+90473ff Project production-beta: update PRD and process backlog
+bbb5ebc docs: align core specs with forge guidelines
+cbc1f02 Retrospective: frontend-e2e-user-flow
+829b38d feat: add p0 event loop modules and refresh forge harness
+
+---
+Session: 2 (2026-02-17)
+Features done (all-time): infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003
+Features remaining: 28 pending, 0 blocked
+Test status: all pass
+Recent commits:
+4f1c508 Session 1: infra-002, infra-003, infra-004, infra-005, infra-006 (5/40 done)
+a85c707 chore: upgrade forge harness and align session rules
+90473ff Project production-beta: update PRD and process backlog
+bbb5ebc docs: align core specs with forge guidelines
+cbc1f02 Retrospective: frontend-e2e-user-flow
+
+---
+Session: 3 (2026-02-17)
+Features done (all-time): infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003, watch-004, detect-002, detect-003, detect-004, detect-005, reason-002, reason-003, reason-004, notify-002, notify-003, event-003, event-004, event-005, feedback-001, feedback-002
+Features remaining: 13 pending, 0 blocked
+Test status: all pass
+Recent commits:
+2349b8d Session 2: infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003 (12/40 done)
+4f1c508 Session 1: infra-002, infra-003, infra-004, infra-005, infra-006 (5/40 done)
+a85c707 chore: upgrade forge harness and align session rules
+90473ff Project production-beta: update PRD and process backlog
+bbb5ebc docs: align core specs with forge guidelines
+
+---
+Session: 4 (2026-02-17)
+Features done (all-time): infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003, watch-004, detect-002, detect-003, detect-004, detect-005, reason-002, reason-003, reason-004, notify-002, notify-003, notify-004, event-003, event-004, event-005, feedback-001, feedback-002, portfolio-001, portfolio-002, push-001, b2b-001, b2b-002
+Features remaining: 7 pending, 0 blocked
+Test status: all pass
+Recent commits:
+5489609 Session 3: infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003, watch-004, detect-002, detect-003, detect-004, detect-005, reason-002, reason-003, reason-004, notify-002, notify-003, event-003, event-004, event-005, feedback-001, feedback-002 (27/40 done)
+2349b8d Session 2: infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003 (12/40 done)
+4f1c508 Session 1: infra-002, infra-003, infra-004, infra-005, infra-006 (5/40 done)
+a85c707 chore: upgrade forge harness and align session rules
+90473ff Project production-beta: update PRD and process backlog
+
+---
+Session: 5 (2026-02-17)
+Features done (all-time): infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003, watch-004, detect-002, detect-003, detect-004, detect-005, reason-002, reason-003, reason-004, notify-002, notify-003, notify-004, event-003, event-004, event-005, feedback-001, feedback-002, portfolio-001, portfolio-002, push-001, b2b-001, b2b-002, ui-001, ui-002, ui-003, e2e-001, e2e-002, qa-001, release-001
+Features remaining: 0 pending, 0 blocked
+Test status: all pass
+Recent commits:
+587effe Session 4: infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003, watch-004, detect-002, detect-003, detect-004, detect-005, reason-002, reason-003, reason-004, notify-002, notify-003, notify-004, event-003, event-004, event-005, feedback-001, feedback-002, portfolio-001, portfolio-002, push-001, b2b-001, b2b-002 (33/40 done)
+5489609 Session 3: infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003, watch-004, detect-002, detect-003, detect-004, detect-005, reason-002, reason-003, reason-004, notify-002, notify-003, event-003, event-004, event-005, feedback-001, feedback-002 (27/40 done)
+2349b8d Session 2: infra-002, infra-003, infra-004, infra-005, infra-006, auth-001, auth-002, ops-001, ops-002, ops-003, watch-002, watch-003 (12/40 done)
+4f1c508 Session 1: infra-002, infra-003, infra-004, infra-005, infra-006 (5/40 done)
+a85c707 chore: upgrade forge harness and align session rules
