@@ -59,6 +59,20 @@ export type EventReason = {
   explanation: Record<string, unknown>;
 };
 
+export type ReasonStatus = "collecting_evidence" | "verified";
+
+export type ConfidenceComponentBreakdown = {
+  source_reliability: number;
+  event_match: number;
+  time_proximity: number;
+};
+
+export type ConfidenceBreakdown = {
+  weights: ConfidenceComponentBreakdown;
+  signals: ConfidenceComponentBreakdown;
+  score_breakdown: ConfidenceComponentBreakdown & { total: number };
+};
+
 export type EventPayload = {
   id: string;
   symbol: string;
@@ -69,6 +83,10 @@ export type EventPayload = {
   exchange_timezone: string;
   session_label: string;
   reasons: EventReason[];
+  reason_status?: ReasonStatus;
+  confidence_breakdown?: ConfidenceBreakdown;
+  explanation_text?: string;
+  revision_hint?: string | null;
   portfolio_impact: Record<string, unknown> | null;
 };
 

@@ -2,15 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { ReasonFeedbackButtons } from "@/components/reason-feedback-buttons";
+import { ReasonExplanationPanel } from "@/components/reason-explanation-panel";
 import { Toast } from "@/components/toast";
 import { WatchlistComposer } from "@/components/watchlist-composer";
-import {
-  ApiClientError,
-  type ApiClient,
-  type EventPayload,
-  type EventReason,
-} from "@/lib/api-client";
+import { ApiClientError, type ApiClient, type EventPayload } from "@/lib/api-client";
 
 type LoadStatus = "loading" | "success" | "error";
 type DetailStatus = "idle" | "loading" | "success" | "error";
@@ -19,34 +14,6 @@ type UiError = { message: string; retryable: boolean };
 type DashboardProps = {
   client: ApiClient;
 };
-
-function isAccessibleExternalUrl(sourceUrl: string | null): sourceUrl is string {
-  if (!sourceUrl) {
-    return false;
-  }
-  try {
-    const parsed = new URL(sourceUrl);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function ReasonSourceLink({ reason }: { reason: EventReason }): JSX.Element {
-  if (isAccessibleExternalUrl(reason.source_url)) {
-    return (
-      <a href={reason.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "#1d4ed8" }}>
-        근거 원문 보기
-      </a>
-    );
-  }
-
-  return (
-    <span aria-disabled="true" style={{ color: "#64748b" }}>
-      접근 불가 링크
-    </span>
-  );
-}
 
 function toUiError(error: unknown, fallbackMessage: string): UiError {
   if (error instanceof ApiClientError) {
@@ -167,30 +134,21 @@ export function WatchlistEventsDashboard({ client }: DashboardProps): JSX.Elemen
       <section style={{ border: "1px solid #cbd5e1", borderRadius: 12, background: "#fff", padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>이벤트 상세</h2>
         {!selectedEvent ? <p>선택된 이벤트가 없습니다.</p> : null}
-        {detailStatus === "loading" ? <p>상세 로딩 중...</p> : null}
+        {detailStatus === "loading" ? (
+          <div data-testid="detail-loading-state" style={{ display: "grid", gap: 8 }}>
+            <p style={{ margin: 0 }}>상세 로딩 중...</p>
+            <p data-testid="reason-panel-loading" style={{ margin: 0, color: "#64748b" }}>
+              원인 설명 패널을 준비 중입니다.
+            </p>
+          </div>
+        ) : null}
         {detailStatus === "error" && detailError ? <p role="alert">{detailError.message}</p> : null}
         {detailStatus === "success" && detailEvent ? (
           <div>
             <p>
               <strong>{detailEvent.market}:{detailEvent.symbol}</strong> {detailEvent.change_pct.toFixed(2)}%
             </p>
-            {detailEvent.reasons.length === 0 ? <p>근거 수집 중입니다.</p> : null}
-            {detailEvent.reasons.length > 0 ? (
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {detailEvent.reasons.map((reason) => (
-                  <li key={`${detailEvent.id}-${reason.rank}`}>
-                    <p style={{ margin: "0 0 4px" }}>{reason.summary}</p>
-                    <ReasonSourceLink reason={reason} />
-                    <ReasonFeedbackButtons
-                      client={client}
-                      eventId={detailEvent.id}
-                      reasonId={reason.id}
-                      onToast={setToast}
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            <ReasonExplanationPanel event={detailEvent} client={client} onToast={setToast} />
           </div>
         ) : null}
       </section>
