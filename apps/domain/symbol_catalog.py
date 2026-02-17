@@ -268,6 +268,7 @@ def _default_bootstrap_records() -> list[CatalogRecord]:
     return [
         CatalogRecord(symbol="AAPL", name="Apple Inc.", market="US"),
         CatalogRecord(symbol="MSFT", name="Microsoft Corporation", market="US"),
+        CatalogRecord(symbol="META", name="Meta Platforms", market="US"),
         CatalogRecord(symbol="NVDA", name="NVIDIA Corporation", market="US"),
         CatalogRecord(symbol="TSLA", name="Tesla Inc.", market="US"),
         CatalogRecord(symbol="005930", name="Samsung Electronics", market="KR"),

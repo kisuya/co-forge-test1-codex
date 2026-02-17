@@ -9,6 +9,7 @@ from apps.domain.auth import (
     InvalidCredentialsError,
     auth_service,
 )
+from apps.domain.watchlist_catalog_validation import WatchlistCatalogValidationError, validate_watchlist_symbol
 from apps.domain.watchlists import watchlist_service
 from apps.domain.watchlists_db import watchlist_db_service
 from apps.infra.observability import log_error, log_info, request_context
@@ -163,42 +164,38 @@ def register_auth_watchlist_routes(app: FastAPI) -> None:
 
     @app.post("/v1/watchlists/items")
     def create_watchlist_item(request: Request, body: dict[str, str]) -> tuple[dict[str, object], int]:
-        authorization = request.headers.get("authorization", "").strip()
-        if not authorization:
-            try:
-                item, is_duplicate = watchlist_service.create_item(
-                    symbol=body.get("symbol", ""),
-                    market=body.get("market", ""),
-                    user_id=body.get("user_id"),
-                )
-            except ValueError as exc:
-                raise HTTPException(
-                    status_code=400,
-                    code="invalid_input",
-                    message="Invalid watchlist item payload",
-                    details={"error": str(exc)},
-                ) from exc
-
-            status_code = 200 if is_duplicate else 201
-            return {"item": item.to_dict(), "is_duplicate": is_duplicate}, status_code
-
-        user = require_authenticated_user(request)
         try:
-            item, is_duplicate = watchlist_db_service.create_item(
+            canonical = validate_watchlist_symbol(
                 symbol=body.get("symbol", ""),
                 market=body.get("market", ""),
-                user_id=user.user_id,
             )
-        except ValueError as exc:
+        except WatchlistCatalogValidationError as exc:
             raise HTTPException(
                 status_code=400,
-                code="invalid_input",
-                message="Invalid watchlist item payload",
-                details={"error": str(exc)},
+                code=exc.code,
+                message=exc.message,
+                details=exc.details,
             ) from exc
 
+        authorization = request.headers.get("authorization", "").strip()
+        if not authorization:
+            item, is_duplicate = watchlist_service.create_item(
+                symbol=canonical.symbol,
+                market=canonical.market,
+                user_id=body.get("user_id"),
+            )
+        else:
+            user = require_authenticated_user(request)
+            item, is_duplicate = watchlist_db_service.create_item(
+                symbol=canonical.symbol,
+                market=canonical.market,
+                user_id=user.user_id,
+            )
+
+        payload = item.to_dict()
+        payload["symbol_name"] = canonical.name
         status_code = 200 if is_duplicate else 201
-        return {"item": item.to_dict(), "is_duplicate": is_duplicate}, status_code
+        return {"item": payload, "is_duplicate": is_duplicate}, status_code
 
     @app.get("/v1/watchlists/items")
     def list_watchlist_items(request: Request) -> dict[str, object]:
