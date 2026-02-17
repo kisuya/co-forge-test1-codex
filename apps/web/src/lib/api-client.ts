@@ -35,6 +35,19 @@ export type WatchlistListResponse = {
   size: number;
 };
 
+export type SymbolSearchItem = {
+  ticker: string;
+  name: string;
+  market: "KR" | "US";
+};
+
+export type SymbolSearchResponse = {
+  items: SymbolSearchItem[];
+  count: number;
+  catalog_version: string | null;
+  catalog_refreshed_at_utc: string | null;
+};
+
 export type EventReason = {
   id: string;
   rank: number;
@@ -126,6 +139,7 @@ export type ApiClient = {
   signup: (input: { email: string; password: string }) => Promise<AuthResponse>;
   login: (input: { email: string; password: string }) => Promise<AuthResponse>;
   getMe: () => Promise<AuthMeResponse>;
+  searchSymbols: (input: { query: string; market: "KR" | "US" }) => Promise<SymbolSearchResponse>;
   listWatchlistItems: (input?: { page?: number; size?: number }) => Promise<WatchlistListResponse>;
   createWatchlistItem: (input: { symbol: string; market: "KR" | "US" }) => Promise<{
     item: WatchlistItem;
@@ -227,6 +241,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return result;
     },
     getMe: () => request<AuthMeResponse>("/v1/auth/me", { requireAuth: true }),
+    searchSymbols: ({ query, market }) =>
+      request<SymbolSearchResponse>(
+        `/v1/symbols/search?q=${encodeURIComponent(query)}&market=${encodeURIComponent(market)}`,
+        { requireAuth: true },
+      ),
     listWatchlistItems: ({ page = 1, size = 20 } = {}) =>
       request<WatchlistListResponse>(`/v1/watchlists/items?page=${page}&size=${size}`, { requireAuth: true }),
     createWatchlistItem: ({ symbol, market }) =>
