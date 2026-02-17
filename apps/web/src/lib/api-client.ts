@@ -134,6 +134,42 @@ export type EventDetailResponse = {
   event: EventPayload;
 };
 
+export type EvidenceCompareAxis = "positive" | "negative" | "uncertain";
+
+export type EvidenceCompareAxisItem = {
+  id: string | null;
+  reason_type: string;
+  summary: string;
+  source_url: string;
+  published_at: string;
+  axis?: EvidenceCompareAxis;
+  classification_reason?: string;
+  matched_terms?: string[];
+  confidence_score?: number;
+};
+
+export type EvidenceCompareSource = {
+  axis: EvidenceCompareAxis;
+  source_url: string;
+  published_at: string;
+  summary: string;
+};
+
+export type EvidenceCompareResponse = {
+  event_id: string;
+  status: "ready" | "compare_unavailable";
+  compare_ready: boolean;
+  fallback_reason: string | null;
+  bias_warning: string;
+  axes: Record<EvidenceCompareAxis, EvidenceCompareAxisItem[]>;
+  axis_counts: Record<EvidenceCompareAxis, number>;
+  comparable_axis_count: number;
+  evidence_count: number;
+  dropped_missing_metadata_count: number;
+  generated_at_utc: string;
+  sources: EvidenceCompareSource[];
+};
+
 export type BriefType = "pre_market" | "post_close";
 export type BriefStatus = "unread" | "read";
 
@@ -241,6 +277,7 @@ export type ApiClient = {
   deleteWatchlistItem: (itemId: string) => Promise<{ deleted: boolean; item_id: string }>;
   listEvents: (input?: { size?: number; cursor?: string }) => Promise<EventsListResponse>;
   getEventDetail: (eventId: string) => Promise<EventDetailResponse>;
+  getEvidenceCompare: (eventId: string) => Promise<EvidenceCompareResponse>;
   submitReasonFeedback: (input: {
     eventId: string;
     reasonId: string;
@@ -370,6 +407,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return request<EventsListResponse>(`/v1/events${query}`, { requireAuth: true });
     },
     getEventDetail: (eventId) => request<EventDetailResponse>(`/v1/events/${eventId}`, { requireAuth: true }),
+    getEvidenceCompare: (eventId) =>
+      request<EvidenceCompareResponse>(`/v1/events/${eventId}/evidence-compare`, { requireAuth: true }),
     submitReasonFeedback: ({ eventId, reasonId, feedback }) =>
       request<{ feedback: Record<string, unknown>; overwritten: boolean }>(`/v1/events/${eventId}/feedback`, {
         method: "POST",

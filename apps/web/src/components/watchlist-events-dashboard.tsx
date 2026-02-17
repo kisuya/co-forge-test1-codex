@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { EvidenceCompareCard } from "@/components/evidence-compare-card";
 import { ReasonExplanationPanel } from "@/components/reason-explanation-panel";
 import { Toast } from "@/components/toast";
 import { WatchlistComposer } from "@/components/watchlist-composer";
@@ -149,6 +150,7 @@ export function WatchlistEventsDashboard({ client }: DashboardProps): JSX.Elemen
               <strong>{detailEvent.market}:{detailEvent.symbol}</strong> {detailEvent.change_pct.toFixed(2)}%
             </p>
             <ReasonExplanationPanel event={detailEvent} client={client} onToast={setToast} />
+            <EvidenceCompareCard eventId={detailEvent.id} client={client} />
           </div>
         ) : null}
       </section>
