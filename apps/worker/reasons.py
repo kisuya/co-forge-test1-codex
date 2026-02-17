@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
-from urllib.parse import urlsplit
 
 from apps.domain.events import parse_utc_datetime, to_utc_iso
 from apps.domain.reasons import event_reason_store
 from apps.infra.observability import log_error
+from apps.worker.reason_evidence_quality_gate import apply_reason_evidence_quality_gate
 
 _FALLBACK_SUMMARY = "근거 수집 중"
 
@@ -51,27 +52,34 @@ def rank_event_reasons(
     detected_at_utc: datetime | str,
     candidates: list[dict[str, Any]],
     request_id: str | None = None,
+    evidence_allowed_domains: set[str] | None = None,
+    evidence_link_checker: Callable[[str], bool] | None = None,
 ) -> list[dict[str, object]]:
     detected_at = parse_utc_datetime(detected_at_utc)
+    gate_result = apply_reason_evidence_quality_gate(
+        candidates=candidates,
+        allowed_domains=evidence_allowed_domains,
+        link_checker=evidence_link_checker,
+    )
+    accepted_candidates = gate_result["accepted_candidates"]
+    excluded_candidates = gate_result["excluded_candidates"]
     scored: list[tuple[float, dict[str, Any]]] = []
 
-    for candidate in candidates:
-        source_url = str(candidate.get("source_url", "")).strip()
-        if not source_url:
-            continue
-        is_valid_url, invalid_reason = _validate_source_url(source_url)
-        if not is_valid_url:
-            log_error(
-                feature="reason-004",
-                event="invalid_source_url_candidate",
-                request_id=request_id,
-                logger_name="oh_my_stock.worker",
-                event_id=event_id,
-                source_url=source_url,
-                reason=invalid_reason,
-            )
-            continue
+    for excluded in excluded_candidates:
+        log_error(
+            feature="reason-004",
+            event="invalid_source_url_candidate",
+            request_id=request_id,
+            logger_name="oh_my_stock.worker",
+            event_id=event_id,
+            source_url=str(excluded.get("source_url", "")),
+            reason=str(excluded.get("reason", "unknown")),
+            retryable=bool(excluded.get("retryable", False)),
+            temporary_excluded=bool(excluded.get("temporary_excluded", False)),
+        )
 
+    for candidate in accepted_candidates:
+        source_url = str(candidate.get("source_url", "")).strip()
         published_at_value = candidate.get("published_at", detected_at)
         published_at = parse_utc_datetime(published_at_value)
 
@@ -105,21 +113,22 @@ def rank_event_reasons(
     top_scored = scored[:3]
     if not top_scored:
         event_reason_store.replace_event_reasons(event_id, [])
-        return [
-            {
-                "reason_type": "fallback",
-                "confidence_score": 0.0,
-                "summary": _FALLBACK_SUMMARY,
-                "source_url": None,
-                "published_at": to_utc_iso(detected_at),
-                "rank": 1,
-                "explanation": {
-                    "weights": {},
-                    "signals": {},
-                    "score_breakdown": {"total": 0.0},
-                },
-            }
-        ]
+        fallback_reason: dict[str, object] = {
+            "reason_status": str(gate_result["reason_status"]),
+            "retry_after_seconds": gate_result["retry_after_seconds"],
+            "reason_type": "fallback",
+            "confidence_score": 0.0,
+            "summary": _FALLBACK_SUMMARY,
+            "source_url": None,
+            "published_at": to_utc_iso(detected_at),
+            "rank": 1,
+            "explanation": {
+                "weights": {},
+                "signals": {},
+                "score_breakdown": {"total": 0.0},
+            },
+        }
+        return [fallback_reason]
 
     built_reasons = []
     for index, (confidence, payload) in enumerate(top_scored, start=1):
@@ -137,12 +146,3 @@ def rank_event_reasons(
 
     event_reason_store.replace_event_reasons(event_id, built_reasons)
     return [reason.to_dict() for reason in built_reasons]
-
-
-def _validate_source_url(source_url: str) -> tuple[bool, str]:
-    parsed = urlsplit(source_url)
-    if parsed.scheme.lower() not in {"http", "https"}:
-        return False, "invalid_scheme"
-    if not parsed.netloc:
-        return False, "missing_host"
-    return True, ""
