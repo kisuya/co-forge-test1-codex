@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 
 from apps.api.b2b_guard import B2BRateLimitException
 from apps.api.b2b_routes import register_b2b_routes
+from apps.api.brief_routes import register_brief_routes
 from apps.api.auth_watchlist_routes import register_auth_watchlist_routes
 from apps.api.event_payloads import serialize_event as _serialize_event
 from apps.api.feedback_routes import register_feedback_routes
@@ -28,6 +29,7 @@ register_auth_watchlist_routes(app)
 register_symbol_routes(app)
 register_threshold_routes(app)
 register_notification_routes(app)
+register_brief_routes(app)
 register_feedback_routes(app)
 register_portfolio_routes(app)
 register_push_token_routes(app)

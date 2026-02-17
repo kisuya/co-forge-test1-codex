@@ -134,6 +134,47 @@ export type EventDetailResponse = {
   event: EventPayload;
 };
 
+export type BriefType = "pre_market" | "post_close";
+export type BriefStatus = "unread" | "read";
+
+export type BriefSummaryItem = {
+  id: string;
+  brief_type: BriefType;
+  title: string;
+  summary: string;
+  generated_at_utc: string;
+  markets: string[];
+  item_count: number;
+  fallback_reason: string | null;
+  status: BriefStatus;
+  is_expired: boolean;
+};
+
+export type BriefContentItem = {
+  event_id: string;
+  symbol: string;
+  market: string;
+  summary: string;
+  event_detail_url: string;
+  source_url: string;
+};
+
+export type BriefListResponse = {
+  items: BriefSummaryItem[];
+  count: number;
+  meta: {
+    unread_count: number;
+    pre_market_count: number;
+    post_close_count: number;
+  };
+};
+
+export type BriefDetailResponse = {
+  brief: BriefSummaryItem & {
+    items: BriefContentItem[];
+  };
+};
+
 export type NotificationItem = {
   id: string;
   user_id: string;
@@ -212,6 +253,12 @@ export type ApiClient = {
     note?: string;
   }) => Promise<{ report_id: string; status: ReasonReportStatus; queued: boolean }>;
   listReasonRevisions: (eventId: string) => Promise<ReasonRevisionHistoryResponse>;
+  listBriefs: (input?: { size?: number }) => Promise<BriefListResponse>;
+  getBriefDetail: (briefId: string) => Promise<BriefDetailResponse>;
+  markBriefRead: (briefId: string) => Promise<{
+    brief: BriefSummaryItem;
+    unread_count: number;
+  }>;
   listNotifications: () => Promise<NotificationListResponse>;
   markNotificationRead: (notificationId: string) => Promise<{
     notification: NotificationItem;
@@ -340,6 +387,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       ),
     listReasonRevisions: (eventId) =>
       request<ReasonRevisionHistoryResponse>(`/v1/events/${eventId}/reason-revisions`, { requireAuth: true }),
+    listBriefs: ({ size = 20 } = {}) =>
+      request<BriefListResponse>(`/v1/briefs?size=${size}`, { requireAuth: true }),
+    getBriefDetail: (briefId) => request<BriefDetailResponse>(`/v1/briefs/${briefId}`, { requireAuth: true }),
+    markBriefRead: (briefId) =>
+      request<{ brief: BriefSummaryItem; unread_count: number }>(`/v1/briefs/${briefId}/read`, {
+        method: "PATCH",
+        requireAuth: true,
+      }),
     listNotifications: () => request<NotificationListResponse>("/v1/notifications", { requireAuth: true }),
     markNotificationRead: (notificationId) =>
       request<{ notification: NotificationItem; unread_count: number }>(
