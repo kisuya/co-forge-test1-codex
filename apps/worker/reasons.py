@@ -7,6 +7,7 @@ from typing import Any
 from apps.domain.events import parse_utc_datetime, to_utc_iso
 from apps.domain.reasons import event_reason_store
 from apps.infra.observability import log_error
+from apps.worker.reason_canonical_dedupe import canonicalize_and_dedupe_reason_candidates
 from apps.worker.reason_evidence_quality_gate import apply_reason_evidence_quality_gate
 
 _FALLBACK_SUMMARY = "근거 수집 중"
@@ -21,21 +22,21 @@ def _recency_score(detected_at: datetime, published_at: datetime) -> float:
     return _clamp(1 - (delta_minutes / 1440), 0.0, 1.0)
 
 
-def _build_explanation(*, source_reliability: float, topic_match: float, time_proximity: float) -> dict[str, object]:
-    weights = {"source_reliability": 0.45, "topic_match": 0.35, "time_proximity": 0.20}
+def _build_explanation(*, source_reliability: float, event_match: float, time_proximity: float) -> dict[str, object]:
+    weights = {"source_reliability": 0.45, "event_match": 0.35, "time_proximity": 0.20}
     signals = {
         "source_reliability": round(source_reliability, 4),
-        "topic_match": round(topic_match, 4),
+        "event_match": round(event_match, 4),
         "time_proximity": round(time_proximity, 4),
     }
     score_breakdown = {
         "source_reliability": round(weights["source_reliability"] * source_reliability, 4),
-        "topic_match": round(weights["topic_match"] * topic_match, 4),
+        "event_match": round(weights["event_match"] * event_match, 4),
         "time_proximity": round(weights["time_proximity"] * time_proximity, 4),
     }
     score_breakdown["total"] = round(
         score_breakdown["source_reliability"]
-        + score_breakdown["topic_match"]
+        + score_breakdown["event_match"]
         + score_breakdown["time_proximity"],
         4,
     )
@@ -43,6 +44,10 @@ def _build_explanation(*, source_reliability: float, topic_match: float, time_pr
         "weights": weights,
         "signals": signals,
         "score_breakdown": score_breakdown,
+        "explanation_text": (
+            "source_reliability, event_match, time_proximity를 가중합한 "
+            "확률형 confidence 점수입니다."
+        ),
     }
 
 
@@ -63,6 +68,7 @@ def rank_event_reasons(
     )
     accepted_candidates = gate_result["accepted_candidates"]
     excluded_candidates = gate_result["excluded_candidates"]
+    deduped_candidates = canonicalize_and_dedupe_reason_candidates(candidates=accepted_candidates)
     scored: list[tuple[float, dict[str, Any]]] = []
 
     for excluded in excluded_candidates:
@@ -78,22 +84,22 @@ def rank_event_reasons(
             temporary_excluded=bool(excluded.get("temporary_excluded", False)),
         )
 
-    for candidate in accepted_candidates:
+    for candidate in deduped_candidates:
         source_url = str(candidate.get("source_url", "")).strip()
         published_at_value = candidate.get("published_at", detected_at)
         published_at = parse_utc_datetime(published_at_value)
 
         source_reliability = float(candidate.get("source_reliability", 0.5))
-        topic_match = float(candidate.get("topic_match_score", 0.5))
+        event_match = float(candidate.get("event_match_score", candidate.get("topic_match_score", 0.5)))
         time_proximity = _recency_score(detected_at, published_at)
         confidence = (
             0.45 * _clamp(source_reliability, 0.0, 1.0)
-            + 0.35 * _clamp(topic_match, 0.0, 1.0)
+            + 0.35 * _clamp(event_match, 0.0, 1.0)
             + 0.20 * time_proximity
         )
         explanation = _build_explanation(
             source_reliability=_clamp(source_reliability, 0.0, 1.0),
-            topic_match=_clamp(topic_match, 0.0, 1.0),
+            event_match=_clamp(event_match, 0.0, 1.0),
             time_proximity=_clamp(time_proximity, 0.0, 1.0),
         )
         scored.append(
@@ -123,9 +129,23 @@ def rank_event_reasons(
             "published_at": to_utc_iso(detected_at),
             "rank": 1,
             "explanation": {
-                "weights": {},
-                "signals": {},
-                "score_breakdown": {"total": 0.0},
+                "weights": {
+                    "source_reliability": 0.45,
+                    "event_match": 0.35,
+                    "time_proximity": 0.20,
+                },
+                "signals": {
+                    "source_reliability": 0.0,
+                    "event_match": 0.0,
+                    "time_proximity": 0.0,
+                },
+                "score_breakdown": {
+                    "source_reliability": 0.0,
+                    "event_match": 0.0,
+                    "time_proximity": 0.0,
+                    "total": 0.0,
+                },
+                "explanation_text": "근거가 충분히 확보되기 전까지 보수적으로 0점으로 표시합니다.",
             },
         }
         return [fallback_reason]
