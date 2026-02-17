@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-02-17T11:00:00Z",
+  "min_samples": 2,
+  "metric_count": 4,
+  "has_previous_snapshot": true,
+  "overall_low_confidence": false,
+  "metrics": {
+    "card_click_rate": {
+      "numerator": 3,
+      "denominator": 4,
+      "value": 0.75,
+      "previous_value": 0.5,
+      "delta": 0.25,
+      "low_confidence": false,
+      "flags": []
+    },
+    "evidence_click_rate": {
+      "numerator": 2,
+      "denominator": 3,
+      "value": 0.6667,
+      "previous_value": 0.5,
+      "delta": 0.1667,
+      "low_confidence": false,
+      "flags": []
+    },
+    "inaccurate_reason_report_rate": {
+      "numerator": 1,
+      "denominator": 3,
+      "value": 0.3333,
+      "previous_value": 0.5,
+      "delta": -0.1667,
+      "low_confidence": false,
+      "flags": []
+    },
+    "brief_open_rate": {
+      "numerator": 1,
+      "denominator": 2,
+      "value": 0.5,
+      "previous_value": 0.25,
+      "delta": 0.25,
+      "low_confidence": false,
+      "flags": []
+    }
+  }
+}
