@@ -1,12 +1,15 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ReasonFeedbackButtons } from "@/components/reason-feedback-buttons";
+import { ReasonReportButton } from "@/components/reason-report-button";
+import { ReasonRevisionTimeline } from "@/components/reason-revision-timeline";
 import type {
   ApiClient,
   ConfidenceBreakdown,
   ConfidenceComponentBreakdown,
   EventPayload,
   EventReason,
+  ReasonReportStatus,
   ReasonStatus,
 } from "@/lib/api-client";
 type ToastPayload = { kind: "error" | "success"; message: string };
@@ -196,6 +199,8 @@ export function ReasonExplanationPanel({
   onToast,
 }: ReasonExplanationPanelProps): JSX.Element {
   const [isExpanded, setExpanded] = useState(false);
+  const [revisionReloadToken, setRevisionReloadToken] = useState(0);
+  const [reasonReportStatuses, setReasonReportStatuses] = useState<Record<string, ReasonReportStatus>>({});
   const reasonStatus = inferReasonStatus(event);
   const statusMeta = STATUS_META[reasonStatus];
   const helperText = event.revision_hint?.trim() || statusMeta.helperText;
@@ -205,6 +210,26 @@ export function ReasonExplanationPanel({
     [event.confidence_breakdown],
   );
   const panelId = `reason-explanation-panel-${event.id}`;
+
+  useEffect(() => {
+    setRevisionReloadToken(0);
+    setReasonReportStatuses({});
+  }, [event.id]);
+
+  const syncReasonStatuses = useCallback((nextStatuses: Record<string, ReasonReportStatus>): void => {
+    setReasonReportStatuses((previous) => {
+      const previousKeys = Object.keys(previous);
+      const nextKeys = Object.keys(nextStatuses);
+      if (
+        previousKeys.length === nextKeys.length &&
+        previousKeys.every((key) => previous[key] === nextStatuses[key])
+      ) {
+        return previous;
+      }
+      return nextStatuses;
+    });
+  }, []);
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
@@ -271,12 +296,31 @@ export function ReasonExplanationPanel({
               <li key={`${event.id}-${reason.rank}`} style={{ display: "grid", gap: 4 }}>
                 <p style={{ margin: 0 }}>{reason.summary}</p>
                 <ReasonSourceLink reason={reason} />
-                <ReasonFeedbackButtons client={client} eventId={event.id} reasonId={reason.id} onToast={onToast} />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                  <ReasonFeedbackButtons client={client} eventId={event.id} reasonId={reason.id} onToast={onToast} />
+                  <ReasonReportButton
+                    client={client}
+                    eventId={event.id}
+                    reasonId={reason.id}
+                    initialStatus={reasonReportStatuses[reason.id] ?? null}
+                    onStatusChange={(status) =>
+                      setReasonReportStatuses((previous) => ({ ...previous, [reason.id]: status }))
+                    }
+                    onSubmitted={() => setRevisionReloadToken((previous) => previous + 1)}
+                    onToast={onToast}
+                  />
+                </div>
               </li>
             ))}
           </ul>
         ) : null}
       </section>
+      <ReasonRevisionTimeline
+        client={client}
+        eventId={event.id}
+        reloadToken={revisionReloadToken}
+        onStatusesUpdated={syncReasonStatuses}
+      />
     </div>
   );
 }

@@ -1,0 +1,90 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`reason report + revision UI flow > submits report with loading state, updates badge, and renders revision timeline 1`] = `
+<section
+  data-testid="reason-revision-section"
+  style="border-top: 1px solid rgb(226, 232, 240); padding-top: 12px; display: grid; gap: 8px;"
+>
+  <h3
+    style="margin: 0px; font-size: 15px;"
+  >
+    정정 이력
+  </h3>
+  <div
+    style="display: grid; gap: 10px;"
+  >
+    <div
+      style="display: grid; gap: 6px;"
+    >
+      <h4
+        style="margin: 0px; font-size: 14px;"
+      >
+        신고 처리 상태
+      </h4>
+      <ol
+        data-testid="reason-status-transition-list"
+        style="margin: 0px; padding-left: 20px; display: grid; gap: 6px;"
+      >
+        <li>
+          <strong>
+            접수됨
+          </strong>
+           · 
+          2026-02-17T01:02:00Z
+        </li>
+        <li>
+          <strong>
+            검토 중
+          </strong>
+           · 
+          2026-02-17T01:06:00Z
+           · triaged
+        </li>
+        <li>
+          <strong>
+            정정 완료
+          </strong>
+           · 
+          2026-02-17T01:10:00Z
+           · resolved
+        </li>
+      </ol>
+    </div>
+    <div
+      style="display: grid; gap: 6px;"
+    >
+      <h4
+        style="margin: 0px; font-size: 14px;"
+      >
+        정정 완료 타임라인
+      </h4>
+      <ul
+        data-testid="reason-revision-timeline"
+        style="margin: 0px; padding-left: 20px; display: grid; gap: 6px;"
+      >
+        <li>
+          <p
+            style="margin: 0px;"
+          >
+            근거 재검증 후 점수 조정
+             (
+            2026-02-17T01:10:00Z
+            )
+          </p>
+          <p
+            style="margin: 0px; color: rgb(51, 65, 85); font-size: 13px;"
+          >
+            confidence 
+            0.82
+             → 
+            0.61
+             (
+            -0.21
+            )
+          </p>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+`;
