@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import json
 from typing import Protocol
 
+from apps.domain.symbol_catalog import get_symbol_catalog_service
 from apps.domain.watchlists import VALID_MARKETS
 from apps.infra.redis_client import RedisClient, RetryableRedisError
 
@@ -42,6 +43,21 @@ class StaticSymbolCatalog:
         return matches
 
 
+class VersionedSymbolCatalog:
+    def __init__(self) -> None:
+        self._catalog_service = get_symbol_catalog_service()
+
+    def search(self, *, query: str, market: str) -> list[SymbolRecord]:
+        records = self._catalog_service.search(query=query, market=market)
+        return [SymbolRecord(ticker=record.symbol, name=record.name, market=record.market) for record in records]
+
+    def active_version(self) -> str | None:
+        return self._catalog_service.active_version()
+
+    def active_applied_at_utc(self) -> str | None:
+        return self._catalog_service.active_applied_at_utc()
+
+
 class SymbolSearchService:
     def __init__(
         self,
@@ -53,13 +69,13 @@ class SymbolSearchService:
         if cache_ttl_seconds < 1:
             raise ValueError("cache_ttl_seconds must be at least 1")
         self._redis_client = redis_client or RedisClient()
-        self._catalog = catalog or StaticSymbolCatalog(_DEFAULT_SYMBOLS)
+        self._catalog = catalog or VersionedSymbolCatalog()
         self._cache_ttl_seconds = cache_ttl_seconds
 
     def search(self, *, query: str, market: str) -> list[SymbolRecord]:
         normalized_query = _normalize_query(query)
         normalized_market = _normalize_market(market)
-        cache_key = _cache_key(normalized_query, normalized_market)
+        cache_key = _cache_key(normalized_query, normalized_market, self._catalog_version())
 
         cached = self._read_cache(cache_key)
         if cached is not None:
@@ -68,6 +84,12 @@ class SymbolSearchService:
         results = self._catalog.search(query=normalized_query, market=normalized_market)
         self._write_cache(cache_key, results)
         return results
+
+    def catalog_metadata(self) -> dict[str, str | None]:
+        return {
+            "catalog_version": self._catalog_version_raw(),
+            "catalog_refreshed_at_utc": self._catalog_refreshed_at_utc(),
+        }
 
     def _read_cache(self, key: str) -> list[SymbolRecord] | None:
         try:
@@ -85,6 +107,27 @@ class SymbolSearchService:
         except RetryableRedisError:
             return
 
+    def _catalog_version(self) -> str:
+        return self._catalog_version_raw() or "static"
+
+    def _catalog_version_raw(self) -> str | None:
+        getter = getattr(self._catalog, "active_version", None)
+        if not callable(getter):
+            return None
+        version = getter()
+        if isinstance(version, str) and version.strip():
+            return version.strip()
+        return None
+
+    def _catalog_refreshed_at_utc(self) -> str | None:
+        getter = getattr(self._catalog, "active_applied_at_utc", None)
+        if not callable(getter):
+            return None
+        timestamp = getter()
+        if isinstance(timestamp, str) and timestamp.strip():
+            return timestamp.strip()
+        return None
+
 
 def _normalize_query(query: str) -> str:
     normalized = (query or "").strip()
@@ -100,8 +143,8 @@ def _normalize_market(market: str) -> str:
     return normalized
 
 
-def _cache_key(query: str, market: str) -> str:
-    return f"{_CACHE_KEY_PREFIX}:{market}:{query}"
+def _cache_key(query: str, market: str, version: str) -> str:
+    return f"{_CACHE_KEY_PREFIX}:{version}:{market}:{query}"
 
 
 def _serialize_records(records: list[SymbolRecord]) -> str:

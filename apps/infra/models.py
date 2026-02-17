@@ -6,6 +6,8 @@ CORE_TABLES = (
     "users",
     "watchlists",
     "watchlist_items",
+    "symbol_catalog_versions",
+    "symbol_catalog_items",
     "price_events",
     "event_reasons",
     "notifications",
@@ -49,6 +51,34 @@ _CREATE_STATEMENTS = (
     """,
     "CREATE INDEX IF NOT EXISTS idx_watchlist_items_user_id ON watchlist_items(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_watchlist_items_market_symbol ON watchlist_items(market, symbol)",
+    f"""
+    CREATE TABLE IF NOT EXISTS symbol_catalog_versions (
+      version TEXT PRIMARY KEY,
+      source_name TEXT NOT NULL,
+      sync_mode TEXT NOT NULL CHECK (sync_mode IN ('full', 'incremental')),
+      status TEXT NOT NULL CHECK (status IN ('active', 'inactive')),
+      item_count INTEGER NOT NULL CHECK (item_count >= 0),
+      fetched_at_utc TEXT NOT NULL,
+      activated_at_utc TEXT NOT NULL,
+      created_at_utc TEXT NOT NULL DEFAULT ({_UTC_DEFAULT})
+    )
+    """,
+    f"""
+    CREATE TABLE IF NOT EXISTS symbol_catalog_items (
+      catalog_version TEXT NOT NULL,
+      market TEXT NOT NULL CHECK (market IN ('KR', 'US')),
+      symbol TEXT NOT NULL,
+      name TEXT NOT NULL,
+      is_active INTEGER NOT NULL CHECK (is_active IN (0, 1)) DEFAULT 1,
+      created_at_utc TEXT NOT NULL DEFAULT ({_UTC_DEFAULT}),
+      PRIMARY KEY (catalog_version, market, symbol),
+      FOREIGN KEY (catalog_version) REFERENCES symbol_catalog_versions(version) ON DELETE CASCADE
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_symbol_catalog_items_version_market_symbol
+    ON symbol_catalog_items(catalog_version, market, symbol)
+    """,
     f"""
     CREATE TABLE IF NOT EXISTS price_events (
       id TEXT PRIMARY KEY,
@@ -137,6 +167,8 @@ _DROP_STATEMENTS = (
     "DROP TABLE IF EXISTS notifications",
     "DROP TABLE IF EXISTS event_reasons",
     "DROP TABLE IF EXISTS price_events",
+    "DROP TABLE IF EXISTS symbol_catalog_items",
+    "DROP TABLE IF EXISTS symbol_catalog_versions",
     "DROP TABLE IF EXISTS watchlist_items",
     "DROP TABLE IF EXISTS watchlists",
     "DROP TABLE IF EXISTS users",

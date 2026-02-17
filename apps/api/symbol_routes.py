@@ -11,8 +11,9 @@ def register_symbol_routes(app: FastAPI) -> None:
     def search_symbols(request: Request) -> dict[str, object]:
         query = (request.query_params.get("q") or "").strip()
         market = (request.query_params.get("market") or "").strip()
+        service = get_symbol_search_service()
         try:
-            records = get_symbol_search_service().search(query=query, market=market)
+            records = service.search(query=query, market=market)
         except ValueError as exc:
             raise HTTPException(
                 status_code=400,
@@ -31,4 +32,10 @@ def register_symbol_routes(app: FastAPI) -> None:
             market=market,
             count=len(items),
         )
-        return {"items": items, "count": len(items)}
+        metadata = service.catalog_metadata()
+        return {
+            "items": items,
+            "count": len(items),
+            "catalog_version": metadata["catalog_version"],
+            "catalog_refreshed_at_utc": metadata["catalog_refreshed_at_utc"],
+        }

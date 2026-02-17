@@ -4,8 +4,8 @@
   "summary": {
     "/health": {
       "count": 20,
-      "p95_ms": 0.02,
-      "max_ms": 0.12
+      "p95_ms": 0.05,
+      "max_ms": 0.13
     },
     "/v1/events?size=20": {
       "count": 20,
