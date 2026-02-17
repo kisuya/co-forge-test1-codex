@@ -1,0 +1,332 @@
+{
+  "project": "project-003-12week-intensive-product-hardening",
+  "goal": "3개월 동안 입력 신뢰, 원인 신뢰, 브리프 경험, 비교 해석 경험을 세밀하게 고도화해 실사용 베타 수준으로 완성한다.",
+  "agent": "codex",
+  "features": [
+    {
+      "id": "watch-005",
+      "name": "종목 시드 카탈로그 동기화와 버전 관리 파이프라인 구축",
+      "description": "입력/출력: 권위 데이터 소스에서 KR/US 상장 종목 메타를 받아 catalog_version과 활성 상태를 저장한다; 성공 동작: 일배치 동기화 후 검색/등록이 최신 버전을 사용한다; 실패/경계조건: 소스 지연·부분 실패·중복 심볼은 이전 안정 버전으로 fallback한다; UX 피드백: 사용자에게는 중단 없이 최신 버전 반영 시각만 노출한다; 제한/기본값: 버전 롤백과 증분 반영 모두 지원한다.",
+      "status": "done",
+      "priority": 1,
+      "test_file": "tests/domain/test_symbol_catalog_sync.py",
+      "depends_on": [
+        "watch-004"
+      ]
+    },
+    {
+      "id": "watch-006",
+      "name": "관심종목 등록 API 시드 검증 계약 강화",
+      "description": "입력/출력: POST/DELETE /v1/watchlists/items가 market,symbol,user_id를 받고 canonical symbol/name과 오류코드를 반환한다; 성공 동작: 카탈로그에 존재하는 심볼만 저장하고 중복 등록은 idempotent 응답을 준다; 실패/경계조건: symbol_not_found/market_mismatch/inactive_symbol/형식오류를 400으로 구분한다; UX 피드백: 필드 단위 오류코드와 메시지를 즉시 표시 가능하게 제공한다; 제한/기본값: created_at은 UTC 고정, 임의 텍스트 저장 금지.",
+      "status": "done",
+      "priority": 2,
+      "test_file": "tests/api/test_watchlist_seed_catalog_validation.py",
+      "depends_on": [
+        "watch-005",
+        "watch-002"
+      ]
+    },
+    {
+      "id": "ui-004",
+      "name": "관심종목 검색/선택 UX(자동완성·최근검색·market 필터) 1차 완성",
+      "description": "입력/출력: watchlist composer가 query/market/최근검색 이벤트를 받아 결과 리스트와 선택 상태를 렌더링한다; 성공 동작: 사용자는 검색 결과에서만 종목을 선택해 등록하고 free-text 직접 입력은 저장되지 않는다; 실패/경계조건: 결과 없음·API 지연·중복 선택·키보드 충돌(Escape/Arrow/Enter)을 처리한다; UX 피드백: 로딩 skeleton/빈 상태/오류 inline+toast/최근검색 섹션을 제공한다; 제한/기본값: 모바일 390px와 데스크톱 1440px에서 레이아웃 안정성 유지.",
+      "status": "done",
+      "priority": 3,
+      "test_file": "tests/web/test_watchlist_search_select_flow.tsx",
+      "depends_on": [
+        "watch-006",
+        "ui-003"
+      ]
+    },
+    {
+      "id": "ui-005",
+      "name": "관심종목 입력 UX 2차 고도화(접근성/상태 일관성) 적용",
+      "description": "입력/출력: 동일 watchlist composer에서 focus 이동·스크린리더 라벨·실패 복구 액션 상태를 추가 노출한다; 성공 동작: 오류 후 재시도, 키보드 전용 조작, 상태 전환(로딩/성공/실패)이 일관된다; 실패/경계조건: 네트워크 단절·중복 클릭·취소 후 재시도·쿼리 길이 경계를 방어한다; UX 피드백: 명확한 aria 속성, 포커스 링, 오류 복구 CTA를 제공한다; 제한/기본값: 시각 회귀 기준을 스냅샷으로 고정한다.",
+      "status": "done",
+      "priority": 4,
+      "test_file": "tests/web/test_watchlist_input_accessibility.tsx",
+      "depends_on": [
+        "ui-004"
+      ]
+    },
+    {
+      "id": "e2e-003",
+      "name": "관심종목 신뢰 플로우 E2E(등록·오류·반응형) 구축",
+      "description": "입력/출력: signup 후 watchlist 등록 플로우에서 정상/오류 케이스를 실행해 스크린샷과 assertion 결과를 남긴다; 성공 동작: 등록·중복·미존재 심볼·시장불일치·모바일 뷰가 모두 기대 동작한다; 실패/경계조건: flaky 네트워크·요청 지연 시 재시도 정책을 적용한다; UX 피드백: 오류 메시지와 복구 버튼 노출 여부를 검증한다; 제한/기본값: CI에서 안정 실행되도록 시드 데이터 고정.",
+      "status": "done",
+      "priority": 5,
+      "test_file": "tests/e2e/test_watchlist_trust_flow.py",
+      "depends_on": [
+        "ui-005"
+      ]
+    },
+    {
+      "id": "reason-005",
+      "name": "원인 근거 URL 품질 게이트(스킴/도메인/활성 링크) 도입",
+      "description": "입력/출력: reason 후보(source_url,title,published_at)를 받아 통과 후보와 제외 사유를 반환한다; 성공 동작: 허용 스킴·도메인 정책과 링크 활성 검사를 통과한 근거만 노출 후보가 된다; 실패/경계조건: timeout/429/해결불가 URL은 retryable로 표준화하고 임시 제외한다; UX 피드백: 사용자에는 '근거 수집 중' 상태 배지와 재시도 예정 정보가 제공된다; 제한/기본값: 근거 없는 단정형 문구는 금지한다.",
+      "status": "done",
+      "priority": 6,
+      "test_file": "tests/worker/test_reason_evidence_quality_gate.py",
+      "depends_on": [
+        "reason-004"
+      ]
+    },
+    {
+      "id": "reason-006",
+      "name": "근거 canonical URL 정규화와 중복 병합 규칙 적용",
+      "description": "입력/출력: 동일 이벤트의 다중 source_url을 canonical URL+제목+발행시각으로 정규화해 dedupe 결과를 반환한다; 성공 동작: 중복 근거는 1건으로 병합되고 원본 매핑이 보존된다; 실패/경계조건: canonical 계산 실패·제목 누락·발행시각 편차는 보수적 병합을 적용한다; UX 피드백: 사용자 카드에는 중복 제거로 간결한 근거 목록이 노출된다; 제한/기본값: 서로 다른 출처는 동일 제목이어도 자동 병합하지 않는다.",
+      "status": "done",
+      "priority": 7,
+      "test_file": "tests/worker/test_reason_canonical_dedupe.py",
+      "depends_on": [
+        "reason-005"
+      ]
+    },
+    {
+      "id": "reason-007",
+      "name": "confidence 분해 스키마 저장과 검증 로직 추가",
+      "description": "입력/출력: score 계산기에서 time_proximity/source_reliability/event_match 가중치와 최종 confidence를 받아 breakdown 스키마로 저장한다; 성공 동작: 모든 reason이 분해값과 설명 텍스트를 가진다; 실패/경계조건: 누락·음수·합계 불일치 값은 저장 실패로 처리하고 노출 차단한다; UX 피드백: 상세 화면에서 '왜 이 점수인지'를 툴팁으로 설명 가능한 데이터가 확보된다; 제한/기본값: 투자 권고형 표현 금지.",
+      "status": "done",
+      "priority": 8,
+      "test_file": "tests/domain/test_reason_confidence_breakdown_schema.py",
+      "depends_on": [
+        "reason-006"
+      ]
+    },
+    {
+      "id": "event-006",
+      "name": "이벤트 상세 API에 reason 상태/분해 설명 필드 확장",
+      "description": "입력/출력: GET /v1/events/{id}가 reason_status,confidence_breakdown,explanation_text,revision_hint를 포함해 반환한다; 성공 동작: 상세 API만으로 카드 상태와 설명 정보를 완전 렌더링할 수 있다; 실패/경계조건: reason 없음·부분 누락·권한 오류는 표준 오류 계약으로 반환한다; UX 피드백: collecting_evidence/verified 상태를 즉시 표시 가능한 필드를 포함한다; 제한/기본값: 기존 응답 키 호환성 유지.",
+      "status": "done",
+      "priority": 9,
+      "test_file": "tests/api/test_event_reason_state_and_breakdown_api.py",
+      "depends_on": [
+        "reason-007",
+        "event-004"
+      ]
+    },
+    {
+      "id": "ui-006",
+      "name": "원인 설명 패널/근거 수집중 상태 UI 연동",
+      "description": "입력/출력: event 상세 UI에서 breakdown과 reason_status를 받아 설명 패널·상태 배지·근거 리스트를 렌더링한다; 성공 동작: 사용자는 점수 근거와 현재 카드 신뢰 상태를 한 화면에서 이해한다; 실패/경계조건: breakdown 누락·근거 0건·로딩 지연 시 대체 UI를 표시한다; UX 피드백: 확장/접기 패널, 상태 컬러, 보조 텍스트를 일관 규칙으로 제공한다; 제한/기본값: 모바일/데스크톱 둘 다 정보 계층 유지.",
+      "status": "done",
+      "priority": 10,
+      "test_file": "tests/web/test_reason_explanation_panel.tsx",
+      "depends_on": [
+        "event-006",
+        "ui-003"
+      ]
+    },
+    {
+      "id": "feedback-003",
+      "name": "부정확 원인 신고 API와 재평가 큐 연동",
+      "description": "입력/출력: POST /v1/events/{id}/reason-reports가 reason_id,report_type,note를 받아 report_id와 상태를 반환한다; 성공 동작: 신고는 received 상태로 저장되고 재평가 큐로 전달된다; 실패/경계조건: 중복 신고, 존재하지 않는 reason_id, 권한 불일치를 400/404/403으로 구분한다; UX 피드백: 처리중/접수완료 배지를 즉시 표시 가능한 상태값을 제공한다; 제한/기본값: 동일 사용자 동일 reason은 열려있는 신고 1건만 허용.",
+      "status": "done",
+      "priority": 11,
+      "test_file": "tests/api/test_reason_report_submission_api.py",
+      "depends_on": [
+        "feedback-001",
+        "reason-007"
+      ]
+    },
+    {
+      "id": "feedback-004",
+      "name": "원인 정정 이력 조회 API와 상태 전이 규칙 구현",
+      "description": "입력/출력: GET /v1/events/{id}/reason-revisions가 revision_history와 상태 전이 로그를 반환한다; 성공 동작: 사용자는 수정 시각·수정 사유·변경된 confidence를 확인한다; 실패/경계조건: 이력 없음·부분 실패·권한 오류는 표준 오류 계약을 따른다; UX 피드백: 카드에 정정 이력 존재 배지를 표시할 수 있는 메타를 제공한다; 제한/기본값: 상태는 received->reviewed->resolved 순서만 허용.",
+      "status": "done",
+      "priority": 12,
+      "test_file": "tests/api/test_reason_revision_history_api.py",
+      "depends_on": [
+        "feedback-003"
+      ]
+    },
+    {
+      "id": "ui-007",
+      "name": "원인 신고/정정 이력 UI 플로우 완성",
+      "description": "입력/출력: 이벤트 상세에서 reason별 신고 버튼과 revision timeline을 렌더링한다; 성공 동작: 신고 제출 후 상태 배지 갱신, 정정 완료 후 타임라인 노출이 동작한다; 실패/경계조건: 중복 제출·오프라인·403 접근을 사용자 친화 오류로 안내한다; UX 피드백: 버튼 비활성화 조건, 처리중 스피너, 완료 토스트를 제공한다; 제한/기본값: 레이아웃/타이포/상태별 화면 기준을 스냅샷으로 검증.",
+      "status": "done",
+      "priority": 13,
+      "test_file": "tests/web/test_reason_report_revision_ui.tsx",
+      "depends_on": [
+        "ui-006",
+        "feedback-004"
+      ]
+    },
+    {
+      "id": "e2e-004",
+      "name": "원인 신고->정정 이력 사용자 여정 E2E 구축",
+      "description": "입력/출력: 이벤트 상세에서 부정확 신고 후 정정 이력 반영까지 E2E 시나리오를 실행한다; 성공 동작: 상태 전이와 UI 표시가 순서대로 검증된다; 실패/경계조건: 지연 처리, 중복 신고, 권한 없는 이벤트 접근 케이스를 포함한다; UX 피드백: 배지·토스트·타임라인 렌더링을 assertion과 스크린샷으로 검증한다; 제한/기본값: flaky 완화를 위해 단계별 재시도 1회 허용.",
+      "status": "done",
+      "priority": 14,
+      "test_file": "tests/e2e/test_reason_report_revision_flow.py",
+      "depends_on": [
+        "ui-007"
+      ]
+    },
+    {
+      "id": "notify-005",
+      "name": "What changed 델타 카드 계산 엔진 구현",
+      "description": "입력/출력: 동일 event_id의 이전 알림 스냅샷과 최신 reason 집합을 비교해 added_sources/removed_sources/confidence_delta를 반환한다; 성공 동작: 변경점이 구조화된 payload로 생성된다; 실패/경계조건: 이전 스냅샷 없음·근거 추가만 존재·변화량 0인 경우 fallback 규칙을 적용한다; UX 피드백: 사용자에게는 무엇이 바뀌었는지 한 줄 요약이 가능해진다; 제한/기본값: 계산은 UTC 시각 기준으로만 수행.",
+      "status": "done",
+      "priority": 15,
+      "test_file": "tests/worker/test_notification_delta_engine.py",
+      "depends_on": [
+        "notify-003",
+        "reason-007"
+      ]
+    },
+    {
+      "id": "notify-006",
+      "name": "델타 기반 재알림 발송 정책(임계치+쿨다운) 적용",
+      "description": "입력/출력: notify-005 델타 payload와 쿨다운 상태를 받아 재알림 발송 여부를 결정한다; 성공 동작: 임계치 이상 변화만 재알림으로 발송한다; 실패/경계조건: 쿨다운 충돌·정책 누락·미세 변화는 억제하고 이벤트 이력만 갱신한다; UX 피드백: 사용자에게 재알림 이유(신뢰도 변화/근거 추가)를 명시할 수 있는 reason_code를 제공한다; 제한/기본값: 정책값은 환경변수로 조정 가능해야 한다.",
+      "status": "done",
+      "priority": 16,
+      "test_file": "tests/worker/test_notification_delta_policy.py",
+      "depends_on": [
+        "notify-005"
+      ]
+    },
+    {
+      "id": "brief-001",
+      "name": "개장 전 브리프 생성기(관심종목 기반) 구현",
+      "description": "입력/출력: 사용자 watchlist, 예정 이벤트, 최근 이유 카드를 받아 pre-market brief 항목을 생성한다; 성공 동작: 장 시작 전 핵심 체크리스트와 링크를 제공한다; 실패/경계조건: 데이터 부족·휴장일·시간대 오류 시 안전한 빈 브리프를 반환한다; UX 피드백: 사용자는 우선순위가 정렬된 카드 목록으로 읽을 수 있다; 제한/기본값: KR/US 거래소 시간대 경계를 분리 계산한다.",
+      "status": "done",
+      "priority": 17,
+      "test_file": "tests/worker/test_pre_market_brief_generation.py",
+      "depends_on": [
+        "detect-005",
+        "event-006"
+      ]
+    },
+    {
+      "id": "brief-002",
+      "name": "장마감 브리프 생성기(당일 변화 요약) 구현",
+      "description": "입력/출력: 당일 이벤트/원인 수정 이력/델타 알림 기록을 받아 post-close brief를 생성한다; 성공 동작: 주요 변화와 최종 상태를 요약한다; 실패/경계조건: 이벤트 없음·부분 집계 실패·중복 이벤트는 규칙적으로 압축한다; UX 피드백: 사용자는 하루 요약을 1분 내 읽고 상세로 이동할 수 있다; 제한/기본값: 날짜 경계는 UTC 저장+거래소 현지시각 변환을 함께 보존한다.",
+      "status": "done",
+      "priority": 18,
+      "test_file": "tests/worker/test_post_close_brief_generation.py",
+      "depends_on": [
+        "brief-001",
+        "notify-006"
+      ]
+    },
+    {
+      "id": "brief-003",
+      "name": "브리프 전달 스케줄러(인앱/이메일) 구현",
+      "description": "입력/출력: 사용자별 시장·시간대·채널 설정을 받아 브리프 발송 작업을 스케줄한다; 성공 동작: pre-market과 post-close 브리프가 적절한 시간에 전달된다; 실패/경계조건: 중복 스케줄·지연 발송·채널 실패는 재시도/보상 로직으로 처리한다; UX 피드백: 사용자는 브리프 수신 채널과 시각을 설정 화면에서 확인할 수 있다; 제한/기본값: 동일 브리프 중복 발송 금지.",
+      "status": "done",
+      "priority": 19,
+      "test_file": "tests/worker/test_brief_delivery_scheduler.py",
+      "depends_on": [
+        "brief-001",
+        "brief-002",
+        "notify-002"
+      ]
+    },
+    {
+      "id": "ui-008",
+      "name": "브리프 인박스 UI(개장 전/장마감)와 상세 진입 구현",
+      "description": "입력/출력: 브리프 목록/상세 API를 받아 인박스 화면과 카드 상세 이동을 렌더링한다; 성공 동작: 사용자가 브리프에서 이벤트 상세/근거 링크로 단절 없이 이동한다; 실패/경계조건: 브리프 없음·부분 로드 실패·만료 링크를 처리한다; UX 피드백: 섹션 구분(pre/post), 읽음 상태, 빈 상태 문구를 제공한다; 제한/기본값: 모바일/데스크톱 레이아웃 기준 충족.",
+      "status": "done",
+      "priority": 20,
+      "test_file": "tests/web/test_brief_inbox_flow.tsx",
+      "depends_on": [
+        "brief-003",
+        "ui-007"
+      ]
+    },
+    {
+      "id": "e2e-005",
+      "name": "브리프 사용자 여정 E2E(수신->읽기->상세 이동) 구축",
+      "description": "입력/출력: 브리프 수신 후 상세 진입까지 E2E를 실행하고 스크린샷/assertion을 기록한다; 성공 동작: pre-market/post-close 두 흐름이 모두 통과한다; 실패/경계조건: 브리프 없음·링크 만료·채널 지연 케이스를 검증한다; UX 피드백: 읽음 처리, 섹션 전환, 상세 진입 버튼 접근성을 함께 검증한다; 제한/기본값: 테스트 데이터는 시간대별 고정 시나리오 사용.",
+      "status": "done",
+      "priority": 21,
+      "test_file": "tests/e2e/test_brief_user_flow.py",
+      "depends_on": [
+        "ui-008"
+      ]
+    },
+    {
+      "id": "compare-001",
+      "name": "상충 근거 분류기(긍정/부정 축)와 비교 페이로드 생성",
+      "description": "입력/출력: 동일 이벤트의 다중 근거를 받아 positive/negative/uncertain 축으로 분류한 비교 payload를 만든다; 성공 동작: 최소 2축 비교 가능한 데이터가 생성된다; 실패/경계조건: 근거 부족·축 불균형·모호한 분류는 uncertain으로 fallback한다; UX 피드백: 사용자에게 편향 경고와 함께 균형 비교가 가능해진다; 제한/기본값: 분류 근거 출처와 발행시각을 항상 포함.",
+      "status": "done",
+      "priority": 22,
+      "test_file": "tests/domain/test_conflicting_evidence_classifier.py",
+      "depends_on": [
+        "reason-006"
+      ]
+    },
+    {
+      "id": "compare-002",
+      "name": "근거 비교 카드 API와 근거 부족 fallback 규칙 구현",
+      "description": "입력/출력: GET /v1/events/{id}/evidence-compare가 분류 결과와 출처 메타를 반환한다; 성공 동작: 이벤트 상세에서 비교 카드 데이터를 직접 소비할 수 있다; 실패/경계조건: 축 1개 이하·출처 누락·권한 오류는 compare_unavailable 상태로 반환한다; UX 피드백: '비교 근거 부족' 상태 메시지를 명확히 표시할 수 있다; 제한/기본값: 단정형 결론 필드 제공 금지.",
+      "status": "done",
+      "priority": 23,
+      "test_file": "tests/api/test_evidence_compare_api.py",
+      "depends_on": [
+        "compare-001",
+        "event-006"
+      ]
+    },
+    {
+      "id": "ui-009",
+      "name": "이벤트 상세 근거 비교 카드 UI 구현",
+      "description": "입력/출력: compare API payload를 받아 긍정/부정/불확실 축 비교 UI를 렌더링한다; 성공 동작: 출처·시각·요약을 축별로 확인하고 상세 링크로 이동할 수 있다; 실패/경계조건: compare_unavailable·부분 데이터·모바일 축소 레이아웃을 처리한다; UX 피드백: 카드 내 정보 밀도와 가독성을 유지하고 시각 대비를 보장한다; 제한/기본값: 상태별 화면(로딩/빈/오류/성공) 모두 정의한다.",
+      "status": "done",
+      "priority": 24,
+      "test_file": "tests/web/test_evidence_compare_card.tsx",
+      "depends_on": [
+        "compare-002",
+        "ui-008"
+      ]
+    },
+    {
+      "id": "e2e-006",
+      "name": "근거 비교 카드 사용자 플로우 E2E 구축",
+      "description": "입력/출력: 이벤트 상세에서 비교 카드 확인 후 근거 링크 이동까지 E2E를 실행한다; 성공 동작: 비교 가능/비교 불가 상태 모두 검증된다; 실패/경계조건: 출처 일부 미응답·링크 차단·모바일 축소 화면을 포함한다; UX 피드백: 축 전환, 링크 클릭, 상태 배지를 assertion으로 고정한다; 제한/기본값: 스냅샷 기준선 업데이트 정책을 문서화한다.",
+      "status": "done",
+      "priority": 25,
+      "test_file": "tests/e2e/test_evidence_compare_flow.py",
+      "depends_on": [
+        "ui-009"
+      ]
+    },
+    {
+      "id": "qa-002",
+      "name": "신뢰도/브리프/비교카드 제품 KPI 계측 및 스모크 리포트 추가",
+      "description": "입력/출력: 카드 클릭률,근거 클릭률,부정확 신고율,브리프 열람률 지표를 수집해 QA 아티팩트로 출력한다; 성공 동작: 릴리즈마다 지표 스냅샷 비교가 가능하다; 실패/경계조건: 지표 누락·집계 지연·샘플 부족은 low_confidence 플래그를 붙인다; UX 피드백: 운영자는 품질 저하를 빠르게 감지할 수 있다; 제한/기본값: 개인정보 직접 식별 필드 수집 금지.",
+      "status": "done",
+      "priority": 26,
+      "test_file": "tests/qa/test_product_kpi_smoke.py",
+      "depends_on": [
+        "e2e-003",
+        "e2e-004",
+        "e2e-005",
+        "e2e-006"
+      ]
+    },
+    {
+      "id": "release-002",
+      "name": "계약 테스트+시각 회귀+품질 KPI를 묶은 3개월 릴리즈 게이트 확정",
+      "description": "입력/출력: API 계약 테스트, E2E, 시각 회귀, KPI smoke 결과를 집계해 release gate pass/fail을 산출한다; 성공 동작: 필수 게이트 실패 시 배포가 자동 차단된다; 실패/경계조건: flaky 테스트, 누락 아티팩트, 기준치 미달은 명확한 실패 사유로 보고된다; UX 피드백: 팀은 릴리즈 준비 상태를 단일 리포트에서 확인한다; 제한/기본값: 게이트 기준은 문서와 CI 설정이 일치해야 한다.",
+      "status": "done",
+      "priority": 27,
+      "test_file": "tests/ops/test_release_gate_quality_bundle.py",
+      "depends_on": [
+        "qa-002"
+      ]
+    },
+    {
+      "id": "ops-004",
+      "name": "features/progress 상태 불일치 자동 점검 스크립트 추가",
+      "description": "입력/출력: docs/projects/current/features.json과 progress.txt를 읽어 상태 불일치 리포트를 반환한다; 성공 동작: pending/done 수치와 완료 목록이 어긋나면 CI에서 실패한다; 실패/경계조건: 포맷 변경·빈 파일·중복 feature id를 감지한다; UX 피드백: 세션 시작 전에 문서 불일치를 즉시 알린다; 제한/기본값: 스크립트는 프로젝트 파일 포맷 변경에도 명시적 오류를 반환해야 한다.",
+      "status": "done",
+      "priority": 28,
+      "test_file": "tests/ops/test_project_state_consistency_guard.py",
+      "depends_on": [
+        "release-002"
+      ]
+    }
+  ]
+}

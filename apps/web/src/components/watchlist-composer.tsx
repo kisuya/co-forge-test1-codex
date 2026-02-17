@@ -178,7 +178,7 @@ export function WatchlistComposer({ client, onToast }: WatchlistComposerProps): 
       return "검색 결과를 불러오는 중입니다.";
     }
     if (searchStatus === "error") {
-      return searchError?.message ?? "검색 결과를 불러오지 못했습니다.";
+      return "";
     }
     if (searchStatus === "success" && searchResults.length === 0) {
       return "검색 결과가 없습니다.";
@@ -252,10 +252,23 @@ export function WatchlistComposer({ client, onToast }: WatchlistComposerProps): 
       setHighlightedIndex(response.items.length > 0 ? 0 : -1);
       return response.items;
     } catch (error) {
-      const fallbackResults = searchFallbackCatalog(normalized, nextMarket);
+      const uiError = toUiError(error, "심볼 검색에 실패했습니다.");
       if (requestId !== searchRequestId.current) {
         return [];
       }
+
+      if (uiError.retryable) {
+        setSearchError(uiError);
+        setSearchResults([]);
+        setSearchStatus("error");
+        setHighlightedIndex(-1);
+        if (!options.silentToast) {
+          onToast({ kind: "error", message: uiError.message });
+        }
+        return [];
+      }
+
+      const fallbackResults = searchFallbackCatalog(normalized, nextMarket);
       if (fallbackResults.length > 0) {
         setSearchResults(fallbackResults);
         setSearchStatus("success");
@@ -263,7 +276,6 @@ export function WatchlistComposer({ client, onToast }: WatchlistComposerProps): 
         return fallbackResults;
       }
 
-      const uiError = toUiError(error, "심볼 검색에 실패했습니다.");
       setSearchError(uiError);
       setSearchResults([]);
       setSearchStatus("error");
@@ -391,7 +403,6 @@ export function WatchlistComposer({ client, onToast }: WatchlistComposerProps): 
     } catch (error) {
       const message = error instanceof ApiClientError ? error.payload.message : "관심종목 저장에 실패했습니다.";
       setSubmitError({ candidate, message });
-      onToast({ kind: "error", message });
     } finally {
       submitInFlightRef.current = false;
       setSubmitting(false);

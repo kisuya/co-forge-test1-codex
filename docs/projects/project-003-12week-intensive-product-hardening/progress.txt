@@ -1,0 +1,251 @@
+Project: project-003-12week-intensive-product-hardening - 12주 집중 고도화 프로젝트
+Started: 2026-02-17
+Status: Completed
+Agent: codex
+
+Features: 0 pending, 28 done
+Previous: docs/projects/project-002-production-beta/retrospective.md
+
+---
+Session: 1 (2026-02-17 17:10)
+Summary: watch-005~006 구현 (종목 시드 카탈로그 동기화 파이프라인, 관심종목 등록 API 시드 검증 강화).
+Features this session: watch-005, watch-006
+Progress: 2/28 done (26 pending, 0 blocked)
+Tests: all pass
+Commits:
+5f7ca23 docs: finalize 12-week project planning and research updates
+<!-- done: watch-005, watch-006 -->
+
+---
+Session: 2 (2026-02-17 17:10)
+Summary: (stall — forge harness 업그레이드 적용 중)
+Features this session: no new features
+Progress: 2/28 done (26 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006 -->
+
+---
+Session: 3 (2026-02-17 17:24)
+Summary: ui-004~005 구현 (관심종목 검색/선택 UX 자동완성·최근검색·market 필터, 접근성/상태 일관성 고도화).
+Features this session: ui-004, ui-005
+Progress: 4/28 done (24 pending, 0 blocked)
+Tests: all pass
+Commits:
+19576ad Session 2: checkpoint (2/28 done)
+<!-- done: watch-005, watch-006, ui-004, ui-005 -->
+
+---
+Session: 4 (2026-02-17 17:24)
+Summary: (stall — forge harness 업그레이드 적용 중)
+Features this session: no new features
+Progress: 4/28 done (24 pending, 0 blocked)
+Tests: all pass
+Commits:
+41f04b0 Upgrade forge harness: fix stream-json --verbose requirement
+d9dcb6c Upgrade forge harness: stream-json for real-time output
+<!-- done: watch-005, watch-006, ui-004, ui-005 -->
+
+---
+Session: 5 (2026-02-17 17:29)
+Summary: e2e-003 구현 (관심종목 신뢰 플로우 E2E: 등록·오류·반응형 테스트).
+Features this session: e2e-003
+Progress: 5/28 done (23 pending, 0 blocked)
+Tests: all pass
+Commits:
+a55ebda Session 4: checkpoint (4/28 done)
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003 -->
+
+---
+Session: 6 (2026-02-17 17:45)
+Summary: reason-005~007 구현 (근거 URL 품질 게이트, canonical URL 정규화/중복 병합, confidence breakdown 스키마 저장·검증). 다음 feature(event-006)는 reason→event 도메인 경계라서 중단.
+Features this session: reason-005, reason-006, reason-007
+Progress: 8/28 done (20 pending, 0 blocked)
+Tests: all pass
+Commits:
+37451cb Session 5: e2e-003 (5/28 done)
+7db4e05 Upgrade forge harness: progress delta, AI summary, resume support
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007 -->
+
+---
+Session: 7 (2026-02-17 17:50)
+Summary: event-006 구현 (이벤트 상세 API에 reason_status/confidence_breakdown/explanation_text/revision_hint 추가 및 누락 데이터 기본값 처리). 다음 ui-006은 event→ui 도메인 경계로 중단.
+Features this session: event-006
+Progress: 9/28 done (19 pending, 0 blocked)
+Tests: all pass
+Commits:
+e2d8a77 Session 6: reason-005, reason-006, reason-007 (8/28 done)
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006 -->
+
+---
+Session: 8 (2026-02-17 17:59)
+Summary: ui-006 구현 (이벤트 상세 UI에 reason 상태 배지/확장형 confidence 설명 패널/근거 리스트와 breakdown 누락·근거 0건·로딩 지연 fallback 연동). 다음 feature(feedback-003)는 ui→feedback 도메인 경계로 중단.
+Features this session: ui-006
+Progress: 10/28 done (18 pending, 0 blocked)
+Tests: all pass
+Commits:
+332b708 Session 7: event-006 (9/28 done)
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006 -->
+
+
+---
+Session: 9 (2026-02-17 18:19)
+Features this session: feedback-003, feedback-004
+Progress: 12/28 done (16 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004 -->
+
+---
+Session: 10 (2026-02-17 18:52)
+Summary: feedback-003~004 구현 (부정확 원인 신고 API+재평가 큐 연동, 정정 이력 조회 API와 received->reviewed->resolved 전이 규칙). 다음 feature(ui-007)는 feedback→ui 도메인 경계로 중단.
+Features this session: no new features
+Progress: 12/28 done (16 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004 -->
+Progress: 13/28 done (15 pending, 0 blocked)
+
+---
+Session: 11 (2026-02-17 19:41)
+Summary: ui-007 구현 (이벤트 상세 reason별 원인 신고 버튼, 처리중 스피너/상태 배지, 정정 이력 타임라인, duplicate·offline·403 오류 UX, 웹 스냅샷 테스트 추가). 다음 e2e-004는 ui→e2e 도메인 경계로 중단.
+Features this session: ui-007
+Progress: 13/28 done (15 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007 -->
+
+---
+Session: 12 (2026-02-17 19:45)
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004 -->
+
+---
+Session: 13 (2026-02-17 19:48)
+Summary: e2e-004 구현 (원인 신고->정정 이력 E2E: 지연 처리/중복 신고/권한 없는 이벤트 접근, 배지·토스트·타임라인 assertion 및 스크린샷 검증). 다음 notify-005는 e2e->notify 도메인 경계로 중단.
+Features this session: no new features
+Progress: 14/28 done (14 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004 -->
+
+Summary: notify-005~006 구현 (What changed 델타 계산 엔진, 임계치+쿨다운 재알림 정책 및 reason_code).
+
+---
+Session: 14 (2026-02-17 19:55)
+Summary: 다음 feature brief-001은 notify→brief 도메인 경계로 중단.
+Features this session: notify-005, notify-006
+Progress: 16/28 done (12 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006 -->
+Summary: brief-001~003 구현 (개장 전 브리프 생성기, 장마감 브리프 생성기, 브리프 전달 스케줄러 및 실패 재시도/보상).
+
+---
+Session: 15 (2026-02-17 20:10)
+Summary: 전체 테스트 통과 후 상태 반영 완료, 다음 feature(ui-008)는 brief→ui 도메인 경계로 중단.
+Features this session: brief-001, brief-002, brief-003
+Progress: 19/28 done (9 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003 -->
+
+---
+Session: 16 (2026-02-17 20:20)
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003, ui-008 -->
+
+---
+Session: 17 (2026-02-17 20:24)
+Summary: ui-008 구현 (브리프 인박스 UI, 브리프 목록/상세/읽음 API 연동, 빈/오류/만료/반응형 상태 처리 및 테스트 추가). 다음 feature(e2e-005)는 ui→e2e 도메인 경계로 중단.
+Features this session: no new features
+Progress: 20/28 done (8 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003, ui-008 -->
+
+Progress: 21/28 done (7 pending, 0 blocked)
+
+---
+Session: 18 (2026-02-17 20:31)
+Summary: e2e-005 구현 (브리프 수신→읽기→상세 이동 E2E, pre/post 흐름 + 브리프 없음·링크 만료·채널 지연 재시도 검증). 다음 compare-001은 e2e→compare 도메인 경계로 중단.
+Features this session: e2e-005
+Progress: 21/28 done (7 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003, ui-008, e2e-005 -->
+Summary: compare-001~002 구현 (상충 근거 분류기 payload 생성, /v1/events/{id}/evidence-compare API 및 axis/source/permission compare_unavailable fallback 계약 테스트 추가). Progress: 23/28 done (5 pending, 0 blocked).
+
+---
+Session: 19 (2026-02-17 20:40)
+Summary: 다음 feature(ui-009)는 compare→ui 도메인 경계로 중단.
+Features this session: compare-001, compare-002
+Progress: 23/28 done (5 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003, ui-008, e2e-005, compare-001, compare-002 -->
+
+
+---
+Session: 20 (2026-02-17 20:47)
+Summary: ui-009 구현 (이벤트 상세 근거 비교 카드 UI: 긍정/부정/불확실 축 렌더링, compare_unavailable·부분 데이터 fallback, 로딩/빈/오류/성공 상태, 모바일 축소 레이아웃, tests/web/test_evidence_compare_card.tsx 추가). 다음 feature(e2e-006)는 ui→e2e 도메인 경계로 중단.
+Features this session: ui-009
+Progress: 24/28 done (4 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003, ui-008, e2e-005, compare-001, compare-002, ui-009 -->
+
+Progress: 25/28 done (3 pending, 0 blocked)
+
+---
+Session: 21 (2026-02-17 20:53)
+Summary: e2e-006 구현 (근거 비교 카드 E2E: 비교 가능/비교 불가, 출처 일부 미응답 재시도, 링크 클릭·차단 링크, 모바일 390px 레이아웃 assertion 및 스크린샷). 다음 qa-002는 e2e→qa 도메인 경계로 중단.
+Features this session: e2e-006
+Progress: 25/28 done (3 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003, ui-008, e2e-005, compare-001, compare-002, ui-009, e2e-006 -->
+
+Progress: 26/28 done (2 pending, 0 blocked)
+
+---
+Session: 22 (2026-02-17 21:03)
+Summary: qa-002 구현 (제품 KPI 계측 스모크 추가: card/evidence/report/brief KPI 스냅샷, low_confidence 플래그, 이전 스냅샷 delta 비교, artifacts/qa/product_kpi_smoke.json 생성). 다음 release-002는 qa→release 도메인 경계로 중단.
+Features this session: qa-002
+Progress: 26/28 done (2 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003, ui-008, e2e-005, compare-001, compare-002, ui-009, e2e-006, qa-002 -->
+
+Progress: 27/28 done (1 pending, 0 blocked)
+
+---
+Session: 23 (2026-02-17 21:13)
+Summary: release-002 구현 (계약/E2E/시각 회귀/KPI smoke 통합 릴리즈 게이트 집계 모듈·CLI·ops 테스트 추가, flaky/누락/기준치 미달 실패 사유 리포트 및 배포 차단 반환). 다음 ops-004는 release→ops 도메인 경계로 중단.
+Features this session: release-002
+Progress: 27/28 done (1 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003, ui-008, e2e-005, compare-001, compare-002, ui-009, e2e-006, qa-002, release-002 -->
+
+---
+Session: 24 (2026-02-17 21:24)
+Summary: ops-004 구현 (features/progress 상태 불일치 자동 점검 모듈·CLI·ops 테스트 추가, test_fast 가드 연동).
+Features this session: ops-004
+Progress: 28/28 done (0 pending, 0 blocked)
+Tests: all pass
+Commits:
+  none
+<!-- done: watch-005, watch-006, ui-004, ui-005, e2e-003, reason-005, reason-006, reason-007, event-006, ui-006, feedback-003, feedback-004, ui-007, e2e-004, notify-005, notify-006, brief-001, brief-002, brief-003, ui-008, e2e-005, compare-001, compare-002, ui-009, e2e-006, qa-002, release-002, ops-004 -->

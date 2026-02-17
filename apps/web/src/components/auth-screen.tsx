@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { ApiClientError, type ApiClient } from "@/lib/api-client";
 import { Toast } from "@/components/toast";
@@ -60,9 +60,15 @@ export function AuthScreen({ mode, client, onAuthenticated }: AuthScreenProps): 
   const [fieldErrors, setFieldErrors] = useState<FieldErrorState>({});
   const [toast, setToast] = useState<{ kind: "error" | "success"; message: string } | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
+  const [isHydrated, setHydrated] = useState(process.env.NODE_ENV === "test");
 
   const isLogin = mode === "login";
   const headline = useMemo(() => (isLogin ? "로그인" : "회원가입"), [isLogin]);
+  const submitLabel = isSubmitting ? "처리 중..." : isHydrated ? headline : "준비 중...";
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -119,6 +125,7 @@ export function AuthScreen({ mode, client, onAuthenticated }: AuthScreenProps): 
             autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.currentTarget.value)}
+            disabled={isSubmitting || !isHydrated}
             style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #d1d5db" }}
           />
           {fieldErrors.email ? (
@@ -137,6 +144,7 @@ export function AuthScreen({ mode, client, onAuthenticated }: AuthScreenProps): 
             autoComplete={isLogin ? "current-password" : "new-password"}
             value={password}
             onChange={(event) => setPassword(event.currentTarget.value)}
+            disabled={isSubmitting || !isHydrated}
             style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #d1d5db" }}
           />
           {fieldErrors.password ? (
@@ -147,7 +155,7 @@ export function AuthScreen({ mode, client, onAuthenticated }: AuthScreenProps): 
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isHydrated}
             style={{
               marginTop: 16,
               width: "100%",
@@ -155,12 +163,12 @@ export function AuthScreen({ mode, client, onAuthenticated }: AuthScreenProps): 
               borderRadius: 8,
               padding: 12,
               color: "#fff",
-              background: "#0f172a",
+              background: isSubmitting || !isHydrated ? "#475569" : "#0f172a",
               fontWeight: 600,
-              cursor: isSubmitting ? "not-allowed" : "pointer",
+              cursor: isSubmitting || !isHydrated ? "not-allowed" : "pointer",
             }}
           >
-            {isSubmitting ? "처리 중..." : headline}
+            {submitLabel}
           </button>
         </form>
 

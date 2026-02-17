@@ -21,6 +21,9 @@ oh-my-stock은 KR/US 주식 급등락의 원인을 근거와 함께 1분 내 전
 - UI 기능의 `description`에는 시각 수용기준(레이아웃/타이포/상태별 화면/반응형)을 포함하고, 검증 시 스크린샷 또는 E2E assertion으로 확인한다.
 - 종목/시장 등 도메인 입력은 시드 카탈로그(또는 권위 데이터 소스) 기준 검증을 필수로 하며, 임의 값 저장을 허용하지 않는다.
 - `features.json` 상태와 `progress.txt` 기록이 불일치하면 즉시 수정하고 다음 기능 작업을 시작하지 않는다.
+- 수동 QA는 `scripts/manual_qa_stack.sh` 기준으로 실행해 시드 데이터/계정/로그 경로를 표준화한다.
+- 로컬 웹 수동 테스트 시 CORS 허용 오리진은 `localhost`와 `127.0.0.1` 쌍을 함께 유지한다(한쪽만 허용 금지).
+- UI 디자인 완성도 리스크가 높으면 다음 프로젝트에서 Tailwind + shadcn/ui 도입을 기본 대안으로 검토하고, 채택 여부를 `features.json` description에 명시한다.
 
 ## Session Start Protocol
 1. `source .forge/scripts/init.sh`

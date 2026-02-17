@@ -50,6 +50,32 @@ set +a
 ./scripts/bootstrap_health.sh
 ```
 
+## Manual QA Stack (Seeded + CORS-safe)
+
+수동 QA 재현성을 위해 고정 시드 데이터와 CORS 기본 허용 오리진을 함께 제공한다.
+
+```bash
+# API만 실행 (시드 포함)
+scripts/manual_qa_stack.sh start
+
+# API + 웹 동시 실행
+OMS_DEV_START_WEB=1 scripts/manual_qa_stack.sh start
+
+# 상태 확인 / 중지
+scripts/manual_qa_stack.sh status
+scripts/manual_qa_stack.sh stop
+```
+
+기본 테스트 계정:
+- email: `kisu@test.com`
+- password: `thekain007`
+
+기본 CORS 오리진:
+- `http://127.0.0.1:13002`
+- `http://localhost:13002`
+- `http://127.0.0.1:13000`
+- `http://localhost:13000`
+
 ## Project Docs
 - 제품 요구사항: `docs/prd.md`
 - 아키텍처 결정: `docs/architecture.md`
